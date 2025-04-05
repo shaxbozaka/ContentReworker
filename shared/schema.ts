@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -44,9 +44,25 @@ export const transformationOutputs = pgTable("transformation_outputs", {
   characterCount: integer("character_count"),
 });
 
+// Social connections table
+export const socialConnections = pgTable("social_connections", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  provider: text("provider").notNull(), // "linkedin", "twitter", etc.
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  profileData: json("profile_data"), // JSON data including name, profile picture, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Define relations after all tables are defined
 export const usersRelations = relations(users, ({ many }) => ({
   transformations: many(transformations),
+  socialConnections: many(socialConnections),
 }));
 
 export const transformationsRelations = relations(transformations, ({ one, many }) => ({
@@ -61,6 +77,13 @@ export const transformationOutputsRelations = relations(transformationOutputs, (
   transformation: one(transformations, {
     fields: [transformationOutputs.transformationId],
     references: [transformations.id],
+  }),
+}));
+
+export const socialConnectionsRelations = relations(socialConnections, ({ one }) => ({
+  user: one(users, {
+    fields: [socialConnections.userId],
+    references: [users.id],
   }),
 }));
 
@@ -113,3 +136,6 @@ export type InsertTransformation = typeof transformations.$inferInsert;
 
 export type TransformationOutput = typeof transformationOutputs.$inferSelect;
 export type InsertTransformationOutput = typeof transformationOutputs.$inferInsert;
+
+export type SocialConnection = typeof socialConnections.$inferSelect;
+export type InsertSocialConnection = typeof socialConnections.$inferInsert;
