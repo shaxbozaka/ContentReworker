@@ -1,21 +1,7 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-
-// Users table (keeping the existing one)
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
 
 // Content type definitions
 export const contentSources = ["Blog Post", "YouTube Transcript", "Podcast", "Article"] as const;
@@ -27,9 +13,17 @@ export type PlatformType = (typeof platformTypes)[number];
 export const toneTypes = ["Professional", "Conversational", "Enthusiastic", "Informative", "Persuasive"] as const;
 export type ToneType = (typeof toneTypes)[number];
 
+// Users table
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+});
+
 // Content transformations table
 export const transformations = pgTable("transformations", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'set null' }),
   originalContent: text("original_content").notNull(),
   contentSource: text("content_source").notNull(),
   tone: text("tone").notNull(),
@@ -39,12 +33,41 @@ export const transformations = pgTable("transformations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Transformation outputs table
 export const transformationOutputs = pgTable("transformation_outputs", {
   id: serial("id").primaryKey(),
-  transformationId: integer("transformation_id").notNull(),
+  transformationId: integer("transformation_id")
+    .notNull()
+    .references(() => transformations.id, { onDelete: 'cascade' }),
   platformType: text("platform_type").notNull(),
   content: text("content").notNull(),
   characterCount: integer("character_count"),
+});
+
+// Define relations after all tables are defined
+export const usersRelations = relations(users, ({ many }) => ({
+  transformations: many(transformations),
+}));
+
+export const transformationsRelations = relations(transformations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [transformations.userId],
+    references: [users.id],
+  }),
+  outputs: many(transformationOutputs),
+}));
+
+export const transformationOutputsRelations = relations(transformationOutputs, ({ one }) => ({
+  transformation: one(transformations, {
+    fields: [transformationOutputs.transformationId],
+    references: [transformations.id],
+  }),
+}));
+
+// Schema for user creation
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
 });
 
 // Schema for creating a new transformation
@@ -68,8 +91,6 @@ export const transformationRequestSchema = z.object({
   useEmojis: z.boolean(),
 });
 
-export type TransformationRequest = z.infer<typeof transformationRequestSchema>;
-
 export const transformationResponseSchema = z.object({
   outputs: z.record(
     z.enum(platformTypes),
@@ -80,7 +101,12 @@ export const transformationResponseSchema = z.object({
   ),
 });
 
+// Export types
+export type TransformationRequest = z.infer<typeof transformationRequestSchema>;
 export type TransformationResponse = z.infer<typeof transformationResponseSchema>;
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Transformation = typeof transformations.$inferSelect;
 export type InsertTransformation = typeof transformations.$inferInsert;

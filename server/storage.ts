@@ -3,6 +3,8 @@ import {
   transformations, type Transformation, type InsertTransformation,
   transformationOutputs, type TransformationOutput, type InsertTransformationOutput
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -20,87 +22,67 @@ export interface IStorage {
   getTransformationOutputs(transformationId: number): Promise<TransformationOutput[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private transformationsMap: Map<number, Transformation>;
-  private transformationOutputsMap: Map<number, TransformationOutput[]>;
-  private userIdCounter: number;
-  private transformationIdCounter: number;
-  private transformationOutputIdCounter: number;
-
-  constructor() {
-    this.users = new Map();
-    this.transformationsMap = new Map();
-    this.transformationOutputsMap = new Map();
-    this.userIdCounter = 1;
-    this.transformationIdCounter = 1;
-    this.transformationOutputIdCounter = 1;
-  }
-
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
   
   // Transformation methods
   async createTransformation(data: InsertTransformation): Promise<Transformation> {
-    const id = this.transformationIdCounter++;
-    const createdAt = new Date();
+    const [transformation] = await db
+      .insert(transformations)
+      .values(data)
+      .returning();
     
-    const transformation: Transformation = {
-      ...data,
-      id,
-      createdAt
-    };
-    
-    this.transformationsMap.set(id, transformation);
     return transformation;
   }
   
   async getTransformation(id: number): Promise<Transformation | undefined> {
-    return this.transformationsMap.get(id);
+    const [transformation] = await db
+      .select()
+      .from(transformations)
+      .where(eq(transformations.id, id));
+    
+    return transformation;
   }
   
   async getRecentTransformations(limit: number): Promise<Transformation[]> {
-    return Array.from(this.transformationsMap.values())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+    return await db
+      .select()
+      .from(transformations)
+      .orderBy(desc(transformations.createdAt))
+      .limit(limit);
   }
   
   // Transformation output methods
   async createTransformationOutput(data: InsertTransformationOutput): Promise<TransformationOutput> {
-    const id = this.transformationOutputIdCounter++;
-    
-    const output: TransformationOutput = {
-      ...data,
-      id
-    };
-    
-    if (!this.transformationOutputsMap.has(data.transformationId)) {
-      this.transformationOutputsMap.set(data.transformationId, []);
-    }
-    
-    this.transformationOutputsMap.get(data.transformationId)!.push(output);
+    const [output] = await db
+      .insert(transformationOutputs)
+      .values(data)
+      .returning();
     
     return output;
   }
   
   async getTransformationOutputs(transformationId: number): Promise<TransformationOutput[]> {
-    return this.transformationOutputsMap.get(transformationId) || [];
+    return await db
+      .select()
+      .from(transformationOutputs)
+      .where(eq(transformationOutputs.transformationId, transformationId));
   }
 }
 
-export const storage = new MemStorage();
+// Use DatabaseStorage instead of MemStorage
+export const storage = new DatabaseStorage();
