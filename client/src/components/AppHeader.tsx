@@ -16,9 +16,11 @@ export default function AppHeader() {
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center">
-          <svg className="h-8 w-8 text-primary" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-          </svg>
+          <img 
+            src="/public/images/logo.png" 
+            alt="Content Repurposing Logo" 
+            className="h-12 w-auto"
+          />
           <h1 className="ml-3 text-xl font-semibold text-gray-900">AI Content Repurposing Assistant</h1>
         </div>
         <div>

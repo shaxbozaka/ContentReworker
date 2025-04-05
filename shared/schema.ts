@@ -13,6 +13,9 @@ export type PlatformType = (typeof platformTypes)[number];
 export const toneTypes = ["Professional", "Conversational", "Enthusiastic", "Informative", "Persuasive"] as const;
 export type ToneType = (typeof toneTypes)[number];
 
+export const aiProviders = ["OpenAI", "Anthropic"] as const;
+export type AIProvider = (typeof aiProviders)[number];
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -30,6 +33,7 @@ export const transformations = pgTable("transformations", {
   outputLength: integer("output_length").notNull(),
   useHashtags: boolean("use_hashtags").notNull(),
   useEmojis: boolean("use_emojis").notNull(),
+  aiProvider: text("ai_provider").default("OpenAI").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -101,6 +105,7 @@ export const createTransformationSchema = createInsertSchema(transformations).pi
   outputLength: true,
   useHashtags: true,
   useEmojis: true,
+  aiProvider: true,
 });
 
 // Schema for making a transformation request
@@ -112,6 +117,7 @@ export const transformationRequestSchema = z.object({
   outputLength: z.number().min(1).max(5),
   useHashtags: z.boolean(),
   useEmojis: z.boolean(),
+  aiProvider: z.enum(aiProviders).default("OpenAI"),
 });
 
 export const transformationResponseSchema = z.object({

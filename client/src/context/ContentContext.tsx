@@ -3,9 +3,11 @@ import {
   ContentSource, 
   PlatformType, 
   ToneType, 
+  AIProvider,
   contentSources, 
   platformTypes, 
   toneTypes,
+  aiProviders,
   TransformationRequest,
   TransformationResponse
 } from "@shared/schema";
@@ -33,6 +35,8 @@ interface ContentContextType {
   setUseHashtags: (use: boolean) => void;
   useEmojis: boolean;
   setUseEmojis: (use: boolean) => void;
+  aiProvider: AIProvider;
+  setAIProvider: (provider: AIProvider) => void;
   
   // Results
   isRepurposing: boolean;
@@ -67,6 +71,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const [outputLength, setOutputLength] = useState<number>(3);
   const [useHashtags, setUseHashtags] = useState<boolean>(true);
   const [useEmojis, setUseEmojis] = useState<boolean>(true);
+  const [aiProvider, setAIProvider] = useState<AIProvider>("OpenAI");
   
   // Results
   const [isRepurposing, setIsRepurposing] = useState<boolean>(false);
@@ -138,7 +143,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       tone,
       outputLength,
       useHashtags,
-      useEmojis
+      useEmojis,
+      aiProvider
     };
     
     try {
@@ -190,7 +196,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         tone,
         outputLength,
         useHashtags,
-        useEmojis
+        useEmojis,
+        aiProvider
       });
       
       const data = await response.json();
@@ -249,6 +256,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     setUseHashtags,
     useEmojis,
     setUseEmojis,
+    aiProvider,
+    setAIProvider,
     isRepurposing,
     repurposeContent,
     outputs,

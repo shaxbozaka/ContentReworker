@@ -1,8 +1,9 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType } from "@shared/schema";
-import { repurposeContent, regenerateContent } from "./services/openai";
+import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType, type AIProvider } from "@shared/schema";
+import * as openaiService from "./services/openai";
+import * as anthropicService from "./services/anthropic";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { 
@@ -19,9 +20,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Validate the request body
       const validatedData = transformationRequestSchema.parse(req.body);
-      
-      // Get repurposed content from OpenAI
-      const outputs = await repurposeContent(validatedData);
+
+      // Select AI service based on the provider in the request
+      let outputs;
+      if (validatedData.aiProvider === 'Anthropic') {
+        // Check if Anthropic API key is set
+        if (!process.env.ANTHROPIC_API_KEY) {
+          return res.status(400).json({ 
+            message: "Anthropic API key (ANTHROPIC_API_KEY) is not configured." 
+          });
+        }
+        outputs = await anthropicService.repurposeContent(
+          validatedData.content,
+          validatedData.contentSource,
+          validatedData.platforms,
+          validatedData.tone,
+          validatedData.outputLength,
+          validatedData.useHashtags,
+          validatedData.useEmojis
+        );
+      } else {
+        // Default to OpenAI
+        outputs = await openaiService.repurposeContent(validatedData);
+      }
       
       // Save the transformation to storage
       const transformation = await storage.createTransformation({
@@ -31,15 +52,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         outputLength: validatedData.outputLength,
         useHashtags: validatedData.useHashtags,
         useEmojis: validatedData.useEmojis,
+        aiProvider: validatedData.aiProvider,
       });
       
       // Save each platform's output
       for (const [platform, output] of Object.entries(outputs)) {
+        const typedOutput = output as { content: string, characterCount: number };
         await storage.createTransformationOutput({
           transformationId: transformation.id,
           platformType: platform as PlatformType,
-          content: output.content,
-          characterCount: output.characterCount,
+          content: typedOutput.content,
+          characterCount: typedOutput.characterCount,
         });
       }
       
@@ -63,22 +86,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/repurpose/regenerate', async (req, res) => {
     try {
       // Validate required fields
-      const { content, contentSource, platform, tone, outputLength, useHashtags, useEmojis } = req.body;
+      const { content, contentSource, platform, tone, outputLength, useHashtags, useEmojis, aiProvider } = req.body;
       
       if (!content || !contentSource || !platform || !tone || outputLength === undefined) {
         return res.status(400).json({ message: "Missing required fields" });
       }
       
-      // Regenerate content for the specific platform
-      const output = await regenerateContent({
+      // Create a regeneration request
+      const regenerationRequest = {
         content,
         contentSource,
         platform,
         tone,
         outputLength,
-        useHashtags,
-        useEmojis
-      });
+        useHashtags: useHashtags || false,
+        useEmojis: useEmojis || false
+      };
+      
+      let output;
+      
+      // Select the appropriate AI service based on the provider
+      if (aiProvider === 'Anthropic') {
+        // Check if Anthropic API key is set
+        if (!process.env.ANTHROPIC_API_KEY) {
+          return res.status(400).json({ 
+            message: "Anthropic API key (ANTHROPIC_API_KEY) is not configured." 
+          });
+        }
+        output = await anthropicService.regenerateContent(regenerationRequest);
+      } else {
+        // Default to OpenAI
+        output = await openaiService.regenerateContent(regenerationRequest);
+      }
       
       // Return the response
       return res.status(200).json({ outputs: { [platform]: output } });
@@ -122,6 +161,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API Provider Routes
+  
+  // Check if Anthropic API key is configured
+  app.get('/api/ai/anthropic/config-status', (req, res) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    
+    if (!apiKey) {
+      return res.json({ 
+        configured: false, 
+        message: "Anthropic API key (ANTHROPIC_API_KEY) is not configured." 
+      });
+    }
+    
+    res.json({ configured: true });
+  });
+  
+  // Request secrets endpoint (this is a stub, as the actual implementation depends on your frontend secret management)
+  app.post('/api/secrets/request', (req, res) => {
+    const { secrets } = req.body;
+    
+    // Log the secrets being requested (don't log actual secret values, just the keys)
+    console.log('Secrets requested:', secrets);
+    
+    // This endpoint doesn't actually set secrets (that would be a security risk)
+    // It just acknowledges the request, and the user would need to set secrets through
+    // proper channels like environment variables or a secret management system
+    
+    res.status(200).json({ 
+      message: "Secret request received. Please set the environment variables through the proper channels.", 
+      requested: secrets 
+    });
+  });
+  
   // LinkedIn OAuth Routes
   
   // Check if LinkedIn API credentials are configured
