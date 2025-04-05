@@ -151,8 +151,13 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       setIsRepurposing(true);
       
       // Call the API to repurpose content
-      const response = await apiRequest('POST', '/api/repurpose', transformationRequest);
-      const data = await response.json() as TransformationResponse;
+      const data = await apiRequest<TransformationResponse>('/api/repurpose', {
+        method: 'POST',
+        body: JSON.stringify(transformationRequest),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
       setOutputs(data.outputs);
       
@@ -189,7 +194,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       setIsRepurposing(true);
       
       // Call the API to regenerate just one platform's content
-      const response = await apiRequest('POST', '/api/repurpose/regenerate', {
+      const regenerationData = {
         content,
         contentSource,
         platform,
@@ -198,9 +203,15 @@ export function ContentProvider({ children }: { children: ReactNode }) {
         useHashtags,
         useEmojis,
         aiProvider
-      });
+      };
       
-      const data = await response.json();
+      const data = await apiRequest<any>('/api/repurpose/regenerate', {
+        method: 'POST',
+        body: JSON.stringify(regenerationData),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
       // Update just that platform's output - data will be in { outputs: { [platform]: {...} } }
       if (data.outputs && data.outputs[platform]) {
