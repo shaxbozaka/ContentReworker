@@ -264,10 +264,12 @@ export default function LinkedInApiTester() {
                     id="redirect-uri" 
                     value={redirectUri} 
                     onChange={(e) => setRedirectUri(e.target.value)}
-                    placeholder="https://your-app.replit.app/api/auth/linkedin/callback" 
+                    placeholder="https://your-app.replit.app" 
                   />
                   <p className="text-xs text-gray-500">
-                    This must exactly match the redirect URI you registered in the LinkedIn Developer Console.
+                    This must <span className="font-semibold">exactly match</span> the redirect URI you registered in the LinkedIn Developer Console.
+                    Common values are your app's root URL (like https://your-app.replit.app). If you see a "redirect_uri doesn't match"
+                    error, double-check this value matches what you registered in LinkedIn Developer Console.
                   </p>
                 </div>
                 

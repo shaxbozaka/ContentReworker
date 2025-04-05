@@ -44,7 +44,7 @@ export default function ExportOptions() {
   const [credentials, setCredentials] = useState<LinkedInCredentials>({
     clientId: '',
     clientSecret: '',
-    redirectUri: window.location.origin + '/api/auth/linkedin/callback'
+    redirectUri: window.location.origin
   });
   const [generatingAuthUrl, setGeneratingAuthUrl] = useState(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
@@ -438,7 +438,8 @@ export default function ExportOptions() {
           <DialogHeader>
             <DialogTitle>LinkedIn API Credentials</DialogTitle>
             <DialogDescription>
-              Enter your LinkedIn API credentials to connect to LinkedIn.
+              Enter your LinkedIn API credentials from your LinkedIn Developer Console.
+              The redirect URI must exactly match what you registered in your LinkedIn app settings.
             </DialogDescription>
           </DialogHeader>
           
@@ -472,11 +473,12 @@ export default function ExportOptions() {
                 id="redirect-uri" 
                 value={credentials.redirectUri} 
                 onChange={handleCredentialsChange('redirectUri')}
-                placeholder={window.location.origin + '/api/auth/linkedin/callback'} 
+                placeholder={window.location.origin} 
                 className="mt-1"
               />
               <p className="text-xs text-gray-500 mt-1">
-                This must exactly match the redirect URI registered in LinkedIn Developer Console
+                This must <span className="font-semibold">exactly match</span> the redirect URI registered in your LinkedIn Developer Console.
+                Common values include your app's root URL (like https://your-app.replit.app).
               </p>
             </div>
           </div>
@@ -500,7 +502,9 @@ export default function ExportOptions() {
                 </Button>
               </div>
               <p className="text-xs text-amber-600 mt-1">
-                Note: Copy the code parameter from the redirect URL after authorization
+                Note: Copy the code parameter from the redirect URL after authorization.
+                If you see a "redirect_uri doesn't match" error, make sure the URI in the field above
+                matches exactly what you registered in LinkedIn Developer Console.
               </p>
             </div>
           )}
