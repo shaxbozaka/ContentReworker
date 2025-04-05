@@ -39,6 +39,10 @@ const LINKEDIN_SCOPES = [
   'w_member_social'
 ].join(' ');
 
+// LinkedIn requires URLs to privacy policy and terms of service
+export const PRIVACY_POLICY_URL = process.env.PRIVACY_POLICY_URL || 'http://localhost:5000/privacy-policy';
+export const TERMS_OF_SERVICE_URL = process.env.TERMS_OF_SERVICE_URL || 'http://localhost:5000/terms-of-service';
+
 // Generate LinkedIn OAuth URL
 export function getLinkedInAuthURL(): string {
   const baseUrl = 'https://www.linkedin.com/oauth/v2/authorization';
@@ -49,6 +53,14 @@ export function getLinkedInAuthURL(): string {
     scope: LINKEDIN_SCOPES,
     state: Math.random().toString(36).substring(2, 15),
   });
+
+  // LinkedIn requires privacy policy and terms of service URLs for API usage
+  if (PRIVACY_POLICY_URL) {
+    params.append('privacy_policy_url', PRIVACY_POLICY_URL);
+  }
+  if (TERMS_OF_SERVICE_URL) {
+    params.append('terms_of_service_url', TERMS_OF_SERVICE_URL);
+  }
 
   return `${baseUrl}?${params.toString()}`;
 }

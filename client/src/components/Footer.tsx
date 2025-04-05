@@ -1,3 +1,5 @@
+import { Link } from "wouter";
+
 export default function Footer() {
   return (
     <footer className="bg-gray-50 border-t border-gray-200 mt-12">
@@ -12,10 +14,13 @@ export default function Footer() {
           
           <div className="flex space-x-6">
             <a href="#" className="text-sm text-gray-600 hover:text-gray-900">Help</a>
-            <a href="#" className="text-sm text-gray-600 hover:text-gray-900">Privacy</a>
-            <a href="#" className="text-sm text-gray-600 hover:text-gray-900">Terms</a>
+            <Link href="/privacy-policy" className="text-sm text-gray-600 hover:text-gray-900">Privacy Policy</Link>
+            <Link href="/terms-of-service" className="text-sm text-gray-600 hover:text-gray-900">Terms of Service</Link>
             <a href="#" className="text-sm text-gray-600 hover:text-gray-900">Contact</a>
           </div>
+        </div>
+        <div className="mt-4 text-center text-xs text-gray-500">
+          © {new Date().getFullYear()} AI Content Repurposing Assistant. All rights reserved.
         </div>
       </div>
     </footer>

@@ -29,10 +29,34 @@ export default function ExportOptions() {
   const [loading, setLoading] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [hasLinkedInCredentials, setHasLinkedInCredentials] = useState<boolean | null>(null);
+  const [missingConfigMessage, setMissingConfigMessage] = useState<string | null>(null);
+  
+  // Check if LinkedIn credentials are configured
+  useEffect(() => {
+    async function checkLinkedInCredentials() {
+      try {
+        const response = await fetch('/api/social/linkedin/config-status');
+        const data = await response.json();
+        setHasLinkedInCredentials(data.configured);
+        if (!data.configured) {
+          setMissingConfigMessage(data.message || "LinkedIn API credentials are not configured.");
+        }
+      } catch (error) {
+        console.error('Error checking LinkedIn credentials:', error);
+        setHasLinkedInCredentials(false);
+        setMissingConfigMessage("Could not verify LinkedIn API configuration.");
+      }
+    }
+    
+    checkLinkedInCredentials();
+  }, []);
   
   // Fetch LinkedIn connection status
   useEffect(() => {
     async function checkLinkedInStatus() {
+      if (!hasLinkedInCredentials) return;
+      
       try {
         const response = await fetch('/api/social/linkedin/status');
         if (response.ok) {
@@ -44,8 +68,10 @@ export default function ExportOptions() {
       }
     }
     
-    checkLinkedInStatus();
-  }, []);
+    if (hasLinkedInCredentials !== null) {
+      checkLinkedInStatus();
+    }
+  }, [hasLinkedInCredentials]);
   
   const handleDownloadAll = () => {
     if (!outputs) return;
@@ -190,19 +216,45 @@ export default function ExportOptions() {
               <SiLinkedin className="text-3xl text-[#0077B5]" />
               <div className="flex-1">
                 <h4 className="font-medium">LinkedIn</h4>
-                <p className="text-sm text-gray-500">
-                  {!linkedInStatus 
-                    ? "Checking connection status..." 
-                    : linkedInStatus.connected 
-                      ? `Connected as ${linkedInStatus.profile?.firstName} ${linkedInStatus.profile?.lastName}` 
-                      : linkedInStatus.expired 
-                        ? "Your connection has expired" 
-                        : "Not connected"
-                  }
-                </p>
+                {hasLinkedInCredentials === null ? (
+                  <p className="text-sm text-gray-500">Checking LinkedIn configuration...</p>
+                ) : !hasLinkedInCredentials ? (
+                  <div>
+                    <p className="text-sm text-amber-600">
+                      {missingConfigMessage || "LinkedIn API credentials are missing"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      LinkedIn integration requires API credentials to be configured.
+                    </p>
+                  </div>
+                ) : !linkedInStatus ? (
+                  <p className="text-sm text-gray-500">Checking connection status...</p>
+                ) : linkedInStatus.connected ? (
+                  <p className="text-sm text-gray-500">
+                    Connected as {linkedInStatus.profile?.firstName} {linkedInStatus.profile?.lastName}
+                  </p>
+                ) : linkedInStatus.expired ? (
+                  <p className="text-sm text-amber-600">Your connection has expired</p>
+                ) : (
+                  <p className="text-sm text-gray-500">Not connected</p>
+                )}
               </div>
               
-              {linkedInStatus?.connected ? (
+              {hasLinkedInCredentials === false ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    toast({
+                      title: "LinkedIn API Credentials Required",
+                      description: "Please contact your administrator to set up LinkedIn integration.",
+                      variant: "default"
+                    });
+                  }}
+                >
+                  Setup Required
+                </Button>
+              ) : linkedInStatus?.connected ? (
                 <Button 
                   variant="default" 
                   size="sm"
@@ -216,7 +268,7 @@ export default function ExportOptions() {
                   variant="outline" 
                   size="sm"
                   onClick={connectToLinkedIn}
-                  disabled={loading}
+                  disabled={loading || !hasLinkedInCredentials}
                 >
                   {loading ? "Connecting..." : "Connect"}
                 </Button>

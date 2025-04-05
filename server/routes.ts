@@ -124,14 +124,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // LinkedIn OAuth Routes
   
+  // Check if LinkedIn API credentials are configured
+  app.get('/api/social/linkedin/config-status', (req, res) => {
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
+    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+      return res.json({ 
+        configured: false, 
+        message: "LinkedIn API credentials (LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET) are not configured." 
+      });
+    }
+    
+    res.json({ configured: true });
+  });
+  
   // Get LinkedIn auth URL
   app.get('/api/auth/linkedin', (req, res) => {
+    // Check if LinkedIn API credentials are configured
+    if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+      return res.status(400).json({ 
+        error: 'LinkedIn API credentials are not configured.',
+        missingCredentials: true
+      });
+    }
+    
     const authUrl = getLinkedInAuthURL();
     res.status(200).json({ authUrl });
   });
   
   // Alias for the frontend
   app.get('/api/social/linkedin/auth', (req, res) => {
+    // Check if LinkedIn API credentials are configured
+    if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+      return res.status(400).json({ 
+        error: 'LinkedIn API credentials are not configured.',
+        missingCredentials: true
+      });
+    }
+    
     const url = getLinkedInAuthURL();
     res.status(200).json({ url });
   });
@@ -139,6 +170,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // LinkedIn OAuth callback
   app.get('/api/auth/linkedin/callback', async (req, res) => {
     try {
+      // Check if LinkedIn API credentials are configured
+      if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+        return res.redirect('/?linkedInConnected=false&error=LinkedIn+API+credentials+not+configured');
+      }
+      
       const { code } = req.query;
       if (!code) {
         return res.status(400).json({ message: 'Authorization code is required' });
@@ -231,10 +267,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Post to LinkedIn
   app.post('/api/social/linkedin/post', async (req, res) => {
     try {
+      // Check if LinkedIn API credentials are configured
+      if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'LinkedIn API credentials are not configured.',
+          missingCredentials: true
+        });
+      }
+      
       const { content } = req.body;
       
       if (!content) {
-        return res.status(400).json({ message: 'Content is required' });
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Content is required' 
+        });
       }
       
       // For demo purposes, we're using a default user ID
