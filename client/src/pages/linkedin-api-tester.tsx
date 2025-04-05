@@ -49,7 +49,8 @@ export default function LinkedInApiTester() {
     }
     
     // Only request scopes that are approved for your app
-    const scopes = ["r_liteprofile", "w_member_social"];
+    // Updated scopes based on LinkedIn's current API requirements
+    const scopes = ["profile", "openid", "w_member_social"];
     const state = Math.random().toString(36).substring(2, 15);
     
     const baseUrl = 'https://www.linkedin.com/oauth/v2/authorization';
