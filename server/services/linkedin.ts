@@ -34,10 +34,8 @@ const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
 const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:5000/api/auth/linkedin/callback';
 // Only request scopes that are approved for the app
-// Updated scopes based on LinkedIn's current API requirements
+// Using only w_member_social which is required for posting content
 const LINKEDIN_SCOPES = [
-  'profile', 
-  'openid',
   'w_member_social'
 ].join(' ');
 
