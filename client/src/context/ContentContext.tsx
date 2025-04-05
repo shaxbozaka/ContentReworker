@@ -190,14 +190,26 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       
       const data = await response.json();
       
-      // Update just that platform's output
-      setOutputs(prev => {
-        if (!prev) return data.outputs;
-        return {
-          ...prev,
-          [platform]: data.outputs[platform]
-        };
-      });
+      // Update just that platform's output - data will be in { outputs: { [platform]: {...} } }
+      if (data.outputs && data.outputs[platform]) {
+        setOutputs(prev => {
+          if (!prev) {
+            // If no previous outputs, create a new outputs object
+            const newOutputs: TransformationResponse['outputs'] = {};
+            newOutputs[platform] = data.outputs[platform];
+            return newOutputs;
+          }
+          
+          // Otherwise merge with previous outputs
+          return {
+            ...prev,
+            [platform]: data.outputs[platform]
+          };
+        });
+      } else {
+        console.error("Unexpected response format:", data);
+        throw new Error("Invalid response format from server");
+      }
       
       toast({
         title: "Content regenerated",
