@@ -7,6 +7,7 @@ import Home from "@/pages/home";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
 import LinkedInApiTester from "@/pages/linkedin-api-tester";
+import AccountsPage from "@/pages/accounts";
 import { ContentProvider } from "./context/ContentContext";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/terms-of-service" component={TermsOfService} />
       <Route path="/linkedin-api-tester" component={LinkedInApiTester} />
+      <Route path="/accounts" component={AccountsPage} />
       <Route component={NotFound} />
     </Switch>
   );

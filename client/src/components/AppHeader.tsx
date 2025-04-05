@@ -38,6 +38,11 @@ export default function AppHeader() {
                 </Link>
               </li>
               <li>
+                <Link href="/accounts">
+                  <span className="text-gray-700 hover:text-blue-600 cursor-pointer">Account Management</span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/linkedin-api-tester">
                   <span className="text-gray-700 hover:text-blue-600 cursor-pointer">LinkedIn Tools</span>
                 </Link>

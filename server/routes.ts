@@ -1,7 +1,7 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType, type AIProvider } from "@shared/schema";
+import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType, type AIProvider, insertUserSchema } from "@shared/schema";
 import * as openaiService from "./services/openai";
 import * as anthropicService from "./services/anthropic";
 import { ZodError } from "zod";
@@ -14,6 +14,7 @@ import {
   storeLinkedInConnection,
   postToLinkedIn
 } from "./services/linkedin";
+import bcrypt from 'bcryptjs';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes for content repurposing
@@ -311,13 +312,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.redirect('/?linkedInConnected=false&error=LinkedIn+API+credentials+not+configured');
       }
       
-      const { code } = req.query;
+      const { code, state, userId } = req.query;
       if (!code) {
         return res.status(400).json({ message: 'Authorization code is required' });
       }
 
-      // For demo purposes, we're using a default user ID
-      const userId = 1;
+      // Get user ID from query params or use default
+      // In a production app, you would extract this from the state parameter or session
+      const userIdValue = userId ? parseInt(userId as string) : 1;
 
       // Exchange code for access token
       const tokenData = await getLinkedInAccessToken(code as string);
@@ -326,10 +328,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profileData = await getLinkedInUserProfile(tokenData.access_token);
 
       // Store LinkedIn connection in database
-      await storeLinkedInConnection(userId, profileData, tokenData);
+      await storeLinkedInConnection(userIdValue, profileData, tokenData);
 
       // Redirect back to the application
-      res.redirect('/?linkedInConnected=true');
+      res.redirect('/?linkedInConnected=true&userId=' + userIdValue);
     } catch (error) {
       console.error('LinkedIn OAuth callback error:', error);
       res.redirect('/?linkedInConnected=false&error=Authentication+failed');
@@ -371,8 +373,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Alias for the frontend
   app.get('/api/social/linkedin/status', async (req, res) => {
     try {
-      // For demo purposes, we're using a default user ID
-      const userId = 1;
+      // Get user ID from query parameters or use default
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : 1;
       
       const connection = await storage.getSocialConnectionByUserAndProvider(userId, 'linkedin');
       
@@ -412,7 +414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const { content } = req.body;
+      const { content, userId } = req.body;
       
       if (!content) {
         return res.status(400).json({ 
@@ -421,10 +423,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // For demo purposes, we're using a default user ID
-      const userId = 1;
+      // Use provided user ID or default to 1
+      const userIdValue = userId ? parseInt(userId) : 1;
       
-      const result = await postToLinkedIn(userId, content);
+      const result = await postToLinkedIn(userIdValue, content);
       
       return res.status(result.success ? 200 : 400).json(result);
     } catch (error) {
@@ -450,6 +452,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error disconnecting LinkedIn:', error);
       return res.status(500).json({ success: false, message: 'Failed to disconnect LinkedIn' });
+    }
+  });
+
+  // User Management Routes
+  
+  // Get all users
+  app.get('/api/users', async (req, res) => {
+    try {
+      // In a real application, you would add pagination and filtering
+      const users = await storage.getAllUsers();
+      
+      // Don't send passwords to the frontend
+      const sanitizedUsers = users.map(user => ({
+        id: user.id,
+        username: user.username
+      }));
+      
+      return res.status(200).json({ users: sanitizedUsers });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      return res.status(500).json({ message: 'Failed to fetch users' });
+    }
+  });
+  
+  // Register a new user
+  app.post('/api/users/register', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      // Validate input
+      const validationResult = insertUserSchema.safeParse({ username, password });
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: 'Invalid input',
+          errors: validationResult.error.errors
+        });
+      }
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: 'Username already exists' });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Create user
+      const user = await storage.createUser({
+        username,
+        password: hashedPassword
+      });
+      
+      // Return user without password
+      return res.status(201).json({
+        user: {
+          id: user.id,
+          username: user.username
+        }
+      });
+    } catch (error) {
+      console.error('Error registering user:', error);
+      return res.status(500).json({ message: 'Failed to register user' });
+    }
+  });
+  
+  // Login
+  app.post('/api/users/login', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      // Validate input
+      if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+      }
+      
+      // Find user
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid username or password' });
+      }
+      
+      // Check password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: 'Invalid username or password' });
+      }
+      
+      // Return user without password
+      return res.status(200).json({
+        user: {
+          id: user.id,
+          username: user.username
+        }
+      });
+    } catch (error) {
+      console.error('Error logging in:', error);
+      return res.status(500).json({ message: 'Failed to log in' });
+    }
+  });
+  
+  // Get user's social connections
+  app.get('/api/users/:userId/social-connections', async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Get connections
+      const connections = await storage.getUserSocialConnections(userId);
+      
+      // Transform connections for the frontend
+      const formattedConnections = connections.map(conn => ({
+        id: conn.id,
+        userId: conn.userId,
+        provider: conn.provider,
+        tokenExpiresAt: conn.tokenExpiresAt,
+        profileData: typeof conn.profileData === 'string' 
+          ? JSON.parse(conn.profileData) 
+          : conn.profileData,
+        createdAt: conn.createdAt,
+        updatedAt: conn.updatedAt
+      }));
+      
+      return res.status(200).json({ connections: formattedConnections });
+    } catch (error) {
+      console.error('Error fetching user social connections:', error);
+      return res.status(500).json({ message: 'Failed to fetch social connections' });
+    }
+  });
+  
+  // Delete a social connection
+  app.delete('/api/social-connections/:connectionId', async (req, res) => {
+    try {
+      const connectionId = parseInt(req.params.connectionId);
+      if (isNaN(connectionId)) {
+        return res.status(400).json({ message: 'Invalid connection ID' });
+      }
+      
+      // Check if connection exists
+      const connection = await storage.getSocialConnection(connectionId);
+      if (!connection) {
+        return res.status(404).json({ message: 'Connection not found' });
+      }
+      
+      // Delete connection
+      await storage.deleteSocialConnection(connectionId);
+      
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error('Error deleting social connection:', error);
+      return res.status(500).json({ message: 'Failed to delete social connection' });
+    }
+  });
+  
+  // Update LinkedIn OAuth flow to support specifying a user
+  app.get('/api/auth/linkedin/user', (req, res) => {
+    try {
+      // Check if LinkedIn API credentials are configured
+      if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+        return res.status(400).json({ 
+          error: 'LinkedIn API credentials are not configured.',
+          missingCredentials: true
+        });
+      }
+      
+      // Get user ID from query parameters
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+      if (!userId) {
+        return res.status(400).json({ message: 'User ID is required' });
+      }
+      
+      // Get LinkedIn auth URL for user-specific flow
+      const baseAuthUrl = getLinkedInAuthURL(true);
+      
+      // Add userId to the state parameter
+      const authUrl = `${baseAuthUrl}&state=userId-${userId}`;
+      
+      return res.status(200).json({ authUrl });
+    } catch (error) {
+      console.error('Error generating LinkedIn auth URL:', error);
+      return res.status(500).json({ message: 'Failed to generate LinkedIn auth URL' });
+    }
+  });
+  
+  // Modified LinkedIn OAuth callback to extract userId from state
+  app.get('/api/auth/linkedin/user/callback', async (req, res) => {
+    try {
+      // Check if LinkedIn API credentials are configured
+      if (!process.env.LINKEDIN_CLIENT_ID || !process.env.LINKEDIN_CLIENT_SECRET) {
+        return res.redirect('/accounts?error=LinkedIn+API+credentials+not+configured');
+      }
+      
+      const { code, state } = req.query;
+      if (!code) {
+        return res.redirect('/accounts?error=Authorization+code+is+required');
+      }
+      
+      // Extract the user ID from the state parameter
+      let userId = 1; // Default user ID as fallback
+      if (state && typeof state === 'string' && state.startsWith('userId-')) {
+        const stateUserId = parseInt(state.replace('userId-', ''));
+        if (!isNaN(stateUserId)) {
+          userId = stateUserId;
+        }
+      }
+      
+      // Exchange code for access token using the user-specific redirect URI
+      const tokenData = await getLinkedInAccessToken(code as string, true);
+      
+      // Get LinkedIn profile data
+      const profileData = await getLinkedInUserProfile(tokenData.access_token);
+      
+      // Store LinkedIn connection in database
+      await storeLinkedInConnection(userId, profileData, tokenData);
+      
+      // Redirect back to the accounts page
+      res.redirect(`/accounts?linkedInConnected=true&userId=${userId}`);
+    } catch (error) {
+      console.error('LinkedIn OAuth callback error:', error);
+      res.redirect('/accounts?error=Authentication+failed');
     }
   });
 

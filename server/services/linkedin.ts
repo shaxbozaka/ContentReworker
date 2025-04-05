@@ -33,6 +33,7 @@ interface LinkedInShareRequest {
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
 const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:5000/api/auth/linkedin/callback';
+const LINKEDIN_USER_REDIRECT_URI = process.env.LINKEDIN_USER_REDIRECT_URI || 'http://localhost:5000/api/auth/linkedin/user/callback';
 // Only request scopes that are approved for the app
 // Using only w_member_social which is required for posting content
 const LINKEDIN_SCOPES = [
@@ -44,12 +45,12 @@ export const PRIVACY_POLICY_URL = process.env.PRIVACY_POLICY_URL || 'http://loca
 export const TERMS_OF_SERVICE_URL = process.env.TERMS_OF_SERVICE_URL || 'http://localhost:5000/terms-of-service';
 
 // Generate LinkedIn OAuth URL
-export function getLinkedInAuthURL(): string {
+export function getLinkedInAuthURL(isUserSpecific: boolean = false): string {
   const baseUrl = 'https://www.linkedin.com/oauth/v2/authorization';
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: LINKEDIN_CLIENT_ID as string,
-    redirect_uri: LINKEDIN_REDIRECT_URI,
+    redirect_uri: isUserSpecific ? LINKEDIN_USER_REDIRECT_URI : LINKEDIN_REDIRECT_URI,
     scope: LINKEDIN_SCOPES,
     state: Math.random().toString(36).substring(2, 15),
   });
@@ -66,15 +67,17 @@ export function getLinkedInAuthURL(): string {
 }
 
 // Exchange authorization code for access token
-export async function getLinkedInAccessToken(code: string): Promise<LinkedInTokenResponse> {
+export async function getLinkedInAccessToken(code: string, isUserSpecific: boolean = false): Promise<LinkedInTokenResponse> {
   try {
+    const redirectUri = isUserSpecific ? LINKEDIN_USER_REDIRECT_URI : LINKEDIN_REDIRECT_URI;
+    
     const response = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', null, {
       params: {
         grant_type: 'authorization_code',
         code,
         client_id: LINKEDIN_CLIENT_ID,
         client_secret: LINKEDIN_CLIENT_SECRET,
-        redirect_uri: LINKEDIN_REDIRECT_URI,
+        redirect_uri: redirectUri,
       },
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
