@@ -166,7 +166,8 @@ export default function ExportOptions() {
     
     try {
       // Generate OAuth URL without storing credentials in the backend
-      const scopes = ["r_liteprofile", "r_emailaddress", "w_member_social"];
+      // Only request scopes that are approved for your app
+      const scopes = ["r_liteprofile", "w_member_social"];
       const state = Math.random().toString(36).substring(2, 15);
       
       const baseUrl = 'https://www.linkedin.com/oauth/v2/authorization';
