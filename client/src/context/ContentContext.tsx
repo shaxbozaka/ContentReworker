@@ -38,6 +38,7 @@ interface ContentContextType {
   isRepurposing: boolean;
   repurposeContent: () => Promise<void>;
   outputs: TransformationResponse['outputs'] | null;
+  resetOutputs: () => void;
   activeTab: PlatformType;
   setActiveTab: (tab: PlatformType) => void;
   
@@ -171,6 +172,10 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     }
   };
   
+  const resetOutputs = () => {
+    setOutputs(null);
+  };
+  
   const regenerateOutput = async (platform: PlatformType) => {
     if (!isPlatformSelected(platform)) return;
     
@@ -247,6 +252,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     isRepurposing,
     repurposeContent,
     outputs,
+    resetOutputs,
     activeTab,
     setActiveTab,
     getWordCount,

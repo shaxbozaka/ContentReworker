@@ -2,13 +2,14 @@ import { Button } from "@/components/ui/button";
 import { useContent } from "@/context/ContentContext";
 
 export default function AppHeader() {
-  const { setContent, setContentSource, setOutputs } = useContent();
+  const context = useContent();
   
   const handleNewProject = () => {
     // Reset the content and outputs
-    setContent("");
-    setContentSource("Blog Post");
-    setOutputs(null);
+    context.setContent("");
+    context.setContentSource("Blog Post");
+    context.resetOutputs();
+    context.setActiveTab("Twitter"); // Reset the active tab too
   };
   
   return (

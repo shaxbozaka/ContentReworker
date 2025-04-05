@@ -5,7 +5,7 @@ import {
   socialConnections, type SocialConnection, type InsertSocialConnection
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -112,11 +112,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSocialConnectionByUserAndProvider(userId: number, provider: string): Promise<SocialConnection | undefined> {
-    const [connection] = await db
+    // Query with two separate conditions
+    const connections = await db
       .select()
       .from(socialConnections)
-      .where(eq(socialConnections.userId, userId))
-      .where(eq(socialConnections.provider, provider));
+      .where(eq(socialConnections.userId, userId));
+    
+    // Filter for the matching provider
+    const connection = connections.find(conn => conn.provider === provider);
     
     return connection;
   }
