@@ -11,6 +11,9 @@ import {
   DialogFooter 
 } from "@/components/ui/dialog";
 import { SiLinkedin } from "react-icons/si";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Settings2 } from "lucide-react";
 
 interface LinkedInStatus {
   connected: boolean;
@@ -22,6 +25,12 @@ interface LinkedInStatus {
   expired?: boolean;
 }
 
+interface LinkedInCredentials {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+}
+
 export default function ExportOptions() {
   const { outputs, copyToClipboard, activeTab } = useContent();
   const { toast } = useToast();
@@ -31,6 +40,16 @@ export default function ExportOptions() {
   const [posting, setPosting] = useState(false);
   const [hasLinkedInCredentials, setHasLinkedInCredentials] = useState<boolean | null>(null);
   const [missingConfigMessage, setMissingConfigMessage] = useState<string | null>(null);
+  const [isCredentialsDialogOpen, setIsCredentialsDialogOpen] = useState(false);
+  const [credentials, setCredentials] = useState<LinkedInCredentials>({
+    clientId: '',
+    clientSecret: '',
+    redirectUri: window.location.origin + '/api/auth/linkedin/callback'
+  });
+  const [generatingAuthUrl, setGeneratingAuthUrl] = useState(false);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const [authCode, setAuthCode] = useState<string>('');
+  const [exchangingCode, setExchangingCode] = useState(false);
   
   // Check if LinkedIn credentials are configured
   useEffect(() => {
@@ -124,6 +143,141 @@ export default function ExportOptions() {
         });
         setLoading(false);
       });
+  };
+  
+  const handleCredentialsChange = (field: keyof LinkedInCredentials) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCredentials(prev => ({
+      ...prev,
+      [field]: e.target.value
+    }));
+  };
+  
+  const generateLinkedInAuthUrl = async () => {
+    if (!credentials.clientId || !credentials.redirectUri) {
+      toast({
+        title: "Missing Required Fields",
+        description: "Please provide Client ID and Redirect URI",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setGeneratingAuthUrl(true);
+    
+    try {
+      // Generate OAuth URL without storing credentials in the backend
+      const scopes = ["r_liteprofile", "r_emailaddress", "w_member_social"];
+      const state = Math.random().toString(36).substring(2, 15);
+      
+      const baseUrl = 'https://www.linkedin.com/oauth/v2/authorization';
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: credentials.clientId,
+        redirect_uri: credentials.redirectUri,
+        scope: scopes.join(' '),
+        state: state,
+      });
+      
+      // Add privacy policy and terms of service URLs
+      const privacyUrl = window.location.origin + '/privacy-policy';
+      const termsUrl = window.location.origin + '/terms-of-service';
+      
+      params.append('privacy_policy_url', privacyUrl);
+      params.append('terms_of_service_url', termsUrl);
+      
+      const authUrl = `${baseUrl}?${params.toString()}`;
+      setAuthUrl(authUrl);
+      
+      toast({
+        title: "Auth URL Generated",
+        description: "You can now open this URL to authorize with LinkedIn",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Error generating auth URL:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate authentication URL",
+        variant: "destructive"
+      });
+    } finally {
+      setGeneratingAuthUrl(false);
+    }
+  };
+  
+  const openLinkedInAuthUrl = () => {
+    if (authUrl) {
+      window.open(authUrl, '_blank');
+    }
+  };
+  
+  const exchangeAuthCode = async () => {
+    if (!authCode || !credentials.clientId || !credentials.clientSecret || !credentials.redirectUri) {
+      toast({
+        title: "Missing Required Fields",
+        description: "Please provide authorization code and all credential fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setExchangingCode(true);
+    
+    try {
+      const response = await fetch('/api/social/linkedin/exchange-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          code: authCode,
+          clientId: credentials.clientId,
+          clientSecret: credentials.clientSecret,
+          redirectUri: credentials.redirectUri
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({
+          title: "Success!",
+          description: `Connected to LinkedIn as ${result.profile.firstName} ${result.profile.lastName}`,
+          variant: "default"
+        });
+        
+        // Update the LinkedIn status
+        setLinkedInStatus({
+          connected: true,
+          profile: {
+            firstName: result.profile.firstName,
+            lastName: result.profile.lastName,
+            id: result.profile.id
+          }
+        });
+        
+        // Close the dialog
+        setIsCredentialsDialogOpen(false);
+        
+        // Set LinkedIn credentials as configured
+        setHasLinkedInCredentials(true);
+      } else {
+        toast({
+          title: "Authentication Failed",
+          description: result.error || "Failed to authenticate with LinkedIn. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error exchanging auth code:', error);
+      toast({
+        title: "Error",
+        description: "Failed to exchange authorization code. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setExchangingCode(false);
+    }
   };
   
   const postToLinkedIn = async () => {
@@ -244,15 +398,9 @@ export default function ExportOptions() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => {
-                    toast({
-                      title: "LinkedIn API Credentials Required",
-                      description: "Please contact your administrator to set up LinkedIn integration.",
-                      variant: "default"
-                    });
-                  }}
+                  onClick={() => setIsCredentialsDialogOpen(true)}
                 >
-                  Setup Required
+                  <Settings2 className="w-4 h-4 mr-1" /> Enter Credentials
                 </Button>
               ) : linkedInStatus?.connected ? (
                 <Button 
@@ -279,6 +427,118 @@ export default function ExportOptions() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsShareDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* LinkedIn Credentials Dialog */}
+      <Dialog open={isCredentialsDialogOpen} onOpenChange={setIsCredentialsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>LinkedIn API Credentials</DialogTitle>
+            <DialogDescription>
+              Enter your LinkedIn API credentials to connect to LinkedIn.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="client-id">Client ID</Label>
+              <Input 
+                id="client-id" 
+                value={credentials.clientId} 
+                onChange={handleCredentialsChange('clientId')}
+                placeholder="e.g. 77rs7gdw8hzmw5" 
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="client-secret">Client Secret</Label>
+              <Input 
+                id="client-secret" 
+                type="password" 
+                value={credentials.clientSecret} 
+                onChange={handleCredentialsChange('clientSecret')}
+                placeholder="e.g. WPL_AP1.WAOevcSYZGwzf48D.Dx/szw==" 
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="redirect-uri">Redirect URI</Label>
+              <Input 
+                id="redirect-uri" 
+                value={credentials.redirectUri} 
+                onChange={handleCredentialsChange('redirectUri')}
+                placeholder={window.location.origin + '/api/auth/linkedin/callback'} 
+                className="mt-1"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This must exactly match the redirect URI registered in LinkedIn Developer Console
+              </p>
+            </div>
+          </div>
+          
+          {authUrl && (
+            <div className="mt-2 mb-2">
+              <Label>Authentication URL</Label>
+              <div className="flex mt-1">
+                <Input 
+                  value={authUrl} 
+                  readOnly
+                  className="font-mono text-xs flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="ml-2"
+                  onClick={openLinkedInAuthUrl}
+                >
+                  Open
+                </Button>
+              </div>
+              <p className="text-xs text-amber-600 mt-1">
+                Note: Copy the code parameter from the redirect URL after authorization
+              </p>
+            </div>
+          )}
+          
+          {authUrl && (
+            <div className="mt-4">
+              <Label htmlFor="auth-code">Authorization Code</Label>
+              <div className="flex mt-1">
+                <Input 
+                  id="auth-code"
+                  placeholder="Paste code from redirect URL here..."
+                  value={authCode}
+                  onChange={(e) => setAuthCode(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="ml-2"
+                  onClick={exchangeAuthCode}
+                  disabled={!authCode || exchangingCode}
+                >
+                  {exchangingCode ? "Exchanging..." : "Exchange Code"}
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCredentialsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={generateLinkedInAuthUrl}
+              disabled={!credentials.clientId || !credentials.redirectUri || generatingAuthUrl}
+            >
+              {generatingAuthUrl ? "Generating..." : "Generate Auth URL"}
             </Button>
           </DialogFooter>
         </DialogContent>

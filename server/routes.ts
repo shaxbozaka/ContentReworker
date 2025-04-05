@@ -6,6 +6,7 @@ import * as openaiService from "./services/openai";
 import * as anthropicService from "./services/anthropic";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import axios from 'axios';
 import { 
   getLinkedInAuthURL, 
   getLinkedInAccessToken, 
@@ -209,6 +210,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     res.json({ configured: true });
+  });
+  
+  // Handle OAuth completion with client-provided credentials
+  app.post('/api/social/linkedin/exchange-code', async (req, res) => {
+    try {
+      const { code, clientId, clientSecret, redirectUri } = req.body;
+      
+      if (!code || !clientId || !clientSecret || !redirectUri) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Missing required parameters' 
+        });
+      }
+      
+      // Exchange code for token
+      const tokenResponse = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', null, {
+        params: {
+          grant_type: 'authorization_code',
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+        },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+      
+      const tokenData = tokenResponse.data;
+      
+      // Get user profile
+      const profileResponse = await axios.get('https://api.linkedin.com/v2/me', {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+        },
+        params: {
+          projection: '(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))',
+        },
+      });
+      
+      const profileData = profileResponse.data;
+      
+      // For demo purposes, use user ID 1
+      const userId = 1;
+      
+      // Store the connection in database
+      await storeLinkedInConnection(userId, profileData, tokenData);
+      
+      return res.status(200).json({
+        success: true,
+        profile: {
+          id: profileData.id,
+          firstName: profileData.localizedFirstName,
+          lastName: profileData.localizedLastName
+        }
+      });
+    } catch (error: any) {
+      console.error('Error exchanging LinkedIn authorization code:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.response?.data?.error_description || error.message || 'Failed to exchange code'
+      });
+    }
   });
   
   // Get LinkedIn auth URL
