@@ -21,7 +21,7 @@ export default function LinkedInApiTester() {
   
   // Auth flow state
   const [authCode, setAuthCode] = useState("");
-  const [redirectUri, setRedirectUri] = useState("");
+  const [redirectUri, setRedirectUri] = useState("https://aicontentrepurposer.com");
   const [accessToken, setAccessToken] = useState("");
   
   // API request state
@@ -268,8 +268,7 @@ export default function LinkedInApiTester() {
                   />
                   <p className="text-xs text-gray-500">
                     This must <span className="font-semibold">exactly match</span> the redirect URI you registered in the LinkedIn Developer Console.
-                    Common values are your app's root URL (like https://your-app.replit.app). If you see a "redirect_uri doesn't match"
-                    error, double-check this value matches what you registered in LinkedIn Developer Console.
+                    We've detected you need to use: <span className="font-mono text-blue-600">https://aicontentrepurposer.com</span>
                   </p>
                 </div>
                 

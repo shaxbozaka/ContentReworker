@@ -44,7 +44,7 @@ export default function ExportOptions() {
   const [credentials, setCredentials] = useState<LinkedInCredentials>({
     clientId: '',
     clientSecret: '',
-    redirectUri: window.location.origin
+    redirectUri: 'https://aicontentrepurposer.com'
   });
   const [generatingAuthUrl, setGeneratingAuthUrl] = useState(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
@@ -478,7 +478,7 @@ export default function ExportOptions() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 This must <span className="font-semibold">exactly match</span> the redirect URI registered in your LinkedIn Developer Console.
-                Common values include your app's root URL (like https://your-app.replit.app).
+                We've detected you need to use: <span className="font-mono text-blue-600">https://aicontentrepurposer.com</span>
               </p>
             </div>
           </div>
