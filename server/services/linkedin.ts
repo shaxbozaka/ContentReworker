@@ -32,8 +32,9 @@ interface LinkedInShareRequest {
 // LinkedIn API Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
-const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || 'http://localhost:5000/api/auth/linkedin/callback';
-const LINKEDIN_USER_REDIRECT_URI = process.env.LINKEDIN_USER_REDIRECT_URI || 'http://localhost:5000/api/auth/linkedin/user/callback';
+const REPLIT_DEV_URL = 'https://078161fa-ac6d-4f43-9b2a-080cd331a150-00-th11kdzql9ef.janeway.replit.dev';
+const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || `${REPLIT_DEV_URL}/api/auth/linkedin/callback`;
+const LINKEDIN_USER_REDIRECT_URI = process.env.LINKEDIN_USER_REDIRECT_URI || `${REPLIT_DEV_URL}/api/auth/linkedin/user/callback`;
 // Only request scopes that are approved for the app
 // Using only w_member_social which is required for posting content
 const LINKEDIN_SCOPES = [
@@ -41,8 +42,8 @@ const LINKEDIN_SCOPES = [
 ].join(' ');
 
 // LinkedIn requires URLs to privacy policy and terms of service
-export const PRIVACY_POLICY_URL = process.env.PRIVACY_POLICY_URL || 'http://localhost:5000/privacy-policy';
-export const TERMS_OF_SERVICE_URL = process.env.TERMS_OF_SERVICE_URL || 'http://localhost:5000/terms-of-service';
+export const PRIVACY_POLICY_URL = process.env.PRIVACY_POLICY_URL || `${REPLIT_DEV_URL}/privacy-policy`;
+export const TERMS_OF_SERVICE_URL = process.env.TERMS_OF_SERVICE_URL || `${REPLIT_DEV_URL}/terms-of-service`;
 
 // Generate LinkedIn OAuth URL
 export function getLinkedInAuthURL(isUserSpecific: boolean = false): string {
