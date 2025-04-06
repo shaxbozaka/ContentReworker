@@ -36,15 +36,16 @@ export default function ExportOptions() {
   const { toast } = useToast();
   const [linkedInStatus, setLinkedInStatus] = useState<LinkedInStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  // Direct LinkedIn posting without a share dialog
   const [posting, setPosting] = useState(false);
   const [hasLinkedInCredentials, setHasLinkedInCredentials] = useState<boolean | null>(null);
   const [missingConfigMessage, setMissingConfigMessage] = useState<string | null>(null);
   const [isCredentialsDialogOpen, setIsCredentialsDialogOpen] = useState(false);
+  const REPLIT_DEV_URL = 'https://078161fa-ac6d-4f43-9b2a-080cd331a150-00-th11kdzql9ef.janeway.replit.dev';
   const [credentials, setCredentials] = useState<LinkedInCredentials>({
     clientId: '',
     clientSecret: '',
-    redirectUri: 'https://aicontentrepurposer.com'
+    redirectUri: REPLIT_DEV_URL
   });
   const [generatingAuthUrl, setGeneratingAuthUrl] = useState(false);
   const [authUrl, setAuthUrl] = useState<string | null>(null);
@@ -322,7 +323,6 @@ export default function ExportOptions() {
       });
     } finally {
       setPosting(false);
-      setIsShareDialogOpen(false);
     }
   };
   
@@ -347,93 +347,51 @@ export default function ExportOptions() {
             >
               <i className="fas fa-download mr-1.5"></i> Download All
             </Button>
-            <Button
-              variant="default"
-              onClick={() => setIsShareDialogOpen(true)}
-              className="bg-secondary hover:bg-green-600 text-white transition-colors"
-            >
-              <i className="fas fa-share-alt mr-1.5"></i> Share
-            </Button>
+            {hasLinkedInCredentials && linkedInStatus?.connected && (
+              <Button
+                variant="default"
+                onClick={() => {
+                  if (outputs && outputs[activeTab]) {
+                    postToLinkedIn();
+                  } else {
+                    toast({
+                      title: "No Content",
+                      description: "Please generate content before posting to LinkedIn",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+                disabled={posting}
+                className="bg-[#0077B5] hover:bg-[#005885] text-white transition-colors"
+              >
+                <SiLinkedin className="mr-1.5" /> {posting ? "Posting..." : "Post to LinkedIn"}
+              </Button>
+            )}
+            {hasLinkedInCredentials && !linkedInStatus?.connected && (
+              <Button
+                variant="outline"
+                onClick={connectToLinkedIn}
+                disabled={loading}
+                className="bg-white hover:bg-gray-100 text-[#0077B5] border-[#0077B5] transition-colors"
+              >
+                <SiLinkedin className="mr-1.5" /> {loading ? "Connecting..." : "Connect LinkedIn"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
       
-      {/* Share Dialog */}
-      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share Content</DialogTitle>
-            <DialogDescription>
-              Share your repurposed content directly to your social media platforms.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <div className="flex items-center gap-4 p-4 border rounded-lg">
-              <SiLinkedin className="text-3xl text-[#0077B5]" />
-              <div className="flex-1">
-                <h4 className="font-medium">LinkedIn</h4>
-                {hasLinkedInCredentials === null ? (
-                  <p className="text-sm text-gray-500">Checking LinkedIn configuration...</p>
-                ) : !hasLinkedInCredentials ? (
-                  <div>
-                    <p className="text-sm text-amber-600">
-                      {missingConfigMessage || "LinkedIn API credentials are missing"}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      LinkedIn integration requires API credentials to be configured.
-                    </p>
-                  </div>
-                ) : !linkedInStatus ? (
-                  <p className="text-sm text-gray-500">Checking connection status...</p>
-                ) : linkedInStatus.connected ? (
-                  <p className="text-sm text-gray-500">
-                    Connected as {linkedInStatus.profile?.firstName} {linkedInStatus.profile?.lastName}
-                  </p>
-                ) : linkedInStatus.expired ? (
-                  <p className="text-sm text-amber-600">Your connection has expired</p>
-                ) : (
-                  <p className="text-sm text-gray-500">Not connected</p>
-                )}
-              </div>
-              
-              {hasLinkedInCredentials === false ? (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setIsCredentialsDialogOpen(true)}
-                >
-                  <Settings2 className="w-4 h-4 mr-1" /> Enter Credentials
-                </Button>
-              ) : linkedInStatus?.connected ? (
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  onClick={postToLinkedIn}
-                  disabled={posting}
-                >
-                  {posting ? "Posting..." : "Post"}
-                </Button>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={connectToLinkedIn}
-                  disabled={loading || !hasLinkedInCredentials}
-                >
-                  {loading ? "Connecting..." : "Connect"}
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsShareDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* LinkedIn Credentials Dialog (if needed) */}
+      {!hasLinkedInCredentials && (
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => setIsCredentialsDialogOpen(true)}
+          className="ml-2 mt-2"
+        >
+          <Settings2 className="w-4 h-4 mr-1" /> Configure LinkedIn
+        </Button>
+      )}
 
       {/* LinkedIn Credentials Dialog */}
       <Dialog open={isCredentialsDialogOpen} onOpenChange={setIsCredentialsDialogOpen}>
@@ -481,7 +439,7 @@ export default function ExportOptions() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 This must <span className="font-semibold">exactly match</span> the redirect URI registered in your LinkedIn Developer Console.
-                We've detected you need to use: <span className="font-mono text-blue-600">https://aicontentrepurposer.com</span>
+                We've detected you need to use: <span className="font-mono text-blue-600">{REPLIT_DEV_URL}</span>
               </p>
             </div>
           </div>
