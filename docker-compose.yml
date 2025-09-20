@@ -5,15 +5,8 @@ services:
     build: .
     ports:
       - "5000:5000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://contentreworker:contentreworker123@postgres:5432/contentreworker_prod
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - SESSION_SECRET=${SESSION_SECRET}
-      - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}
-      - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}
-      - LINKEDIN_REDIRECT_URI=${LINKEDIN_REDIRECT_URI}
+    env_file:
+      - .env.production  # Add this line
     depends_on:
       - postgres
     restart: unless-stopped
