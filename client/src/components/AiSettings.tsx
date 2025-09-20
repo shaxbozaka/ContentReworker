@@ -31,8 +31,7 @@ export default function AiSettings() {
       if (aiProvider === 'Anthropic') {
         setIsLoading(true);
         try {
-          const response = await apiRequest('GET', '/api/ai/anthropic/config-status');
-          const data = await response.json();
+          const data = await apiRequest('/api/ai/anthropic/config-status');
           setAnthropicConfigured(data.configured);
           
           if (!data.configured) {
