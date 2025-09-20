@@ -2,7 +2,22 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+
+// Simple log function for production
+const log = (message: string) => {
+  const timestamp = new Date().toLocaleString();
+  console.log(`${timestamp} ${message}`);
+};
+
+// Simple static file server for production
+const serveStatic = (app: express.Application) => {
+  app.use(express.static(path.join(process.cwd(), "dist/public")));
+  
+  // Catch-all handler for SPA
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "dist/public/index.html"));
+  });
+};
 
 const app = express();
 app.use(express.json());
@@ -56,6 +71,7 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   } else {
     serveStatic(app);
