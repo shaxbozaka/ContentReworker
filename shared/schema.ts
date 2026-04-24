@@ -24,6 +24,10 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   email: text("email").unique(),
   googleId: text("google_id").unique(),
+  googleAccessToken: text("google_access_token"),
+  googleRefreshToken: text("google_refresh_token"),
+  googleTokenExpiry: timestamp("google_token_expiry"),
+  googleScopes: text("google_scopes"),
   linkedinId: text("linkedin_id").unique(),
   name: text("name"),
   avatarUrl: text("avatar_url"),
@@ -556,6 +560,8 @@ export const curatedVirals = pgTable("curated_virals", {
   category: text("category").notNull(),
   whyItWorks: text("why_it_works"),
   hookPattern: text("hook_pattern"), // "contrarian", "story", "listicle", etc.
+  topics: json("topics").$type<string[]>().default([]), // auto-tagged via Gemini
+  topicsTaggedAt: timestamp("topics_tagged_at"),
 
   // Source
   sourceUrl: text("source_url"),
@@ -579,11 +585,22 @@ export const trackedAccounts = pgTable("tracked_accounts", {
   handle: text("handle").notNull(), // e.g. "justinwelsh", or YouTube channel id "UC..."
   displayName: text("display_name"),
   profileUrl: text("profile_url"),
+  source: text("source").default("manual").notNull(), // manual | youtube_subscription | instagram_following | linkedin_follow | tiktok_following
   lastFetchedAt: timestamp("last_fetched_at"),
   lastPostCount: integer("last_post_count").default(0),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Feedback signals (explicit + implicit) that drive the recommendation ranking.
+export const viralInteractions = pgTable("viral_interactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  viralId: integer("viral_id").notNull(), // references curated_virals.id (soft ref so we can delete virals without losing interaction rows)
+  action: text("action").notNull(), // view | use | copy | like | hide | imported_like
+  weight: integer("weight").default(1).notNull(), // per-action strength for ranking
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Per-user niche/topic preferences that feed the ranking and keyword queries.
@@ -606,3 +623,5 @@ export type TrackedAccount = typeof trackedAccounts.$inferSelect;
 export type InsertTrackedAccount = typeof trackedAccounts.$inferInsert;
 export type UserContentPreferences = typeof userContentPreferences.$inferSelect;
 export type InsertUserContentPreferences = typeof userContentPreferences.$inferInsert;
+export type ViralInteraction = typeof viralInteractions.$inferSelect;
+export type InsertViralInteraction = typeof viralInteractions.$inferInsert;

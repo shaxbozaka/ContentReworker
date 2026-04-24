@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import { trackedAccounts, curatedVirals } from '../../shared/schema';
 import { fetchChannelRecentVideos } from './scrapers/youtube';
+import { tagViral } from './viral-tagger';
 
 export interface IngestResult {
   accountId: number;
@@ -72,7 +73,7 @@ export async function ingestForAccount(accountId: number): Promise<IngestResult>
       continue;
     }
 
-    await db.insert(curatedVirals).values({
+    const [inserted] = await db.insert(curatedVirals).values({
       platform: v.platform,
       authorName: v.authorName,
       authorHandle: v.authorHandle,
@@ -92,8 +93,14 @@ export async function ingestForAccount(accountId: number): Promise<IngestResult>
       verifiedAt: new Date(),
       trackedAccountId: accountId,
       isActive: true,
-    });
+    }).returning({ id: curatedVirals.id });
     added++;
+    // Fire-and-forget tagging — don't block ingest on it.
+    if (inserted) {
+      tagViral(inserted.id).catch((err) => {
+        console.warn(`[ingest] tag for viral ${inserted.id} failed:`, err.message);
+      });
+    }
   }
 
   await db

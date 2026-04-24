@@ -2,10 +2,12 @@ import type { Express, Request, Response, NextFunction } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType, type AIProvider, insertUserSchema, trackedAccounts, userContentPreferences } from "@shared/schema";
+import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType, type AIProvider, insertUserSchema, trackedAccounts, userContentPreferences, viralInteractions, curatedVirals, users as usersTable } from "@shared/schema";
 import { db } from "./db";
 import { and, desc, eq } from "drizzle-orm";
 import { ingestForAccount } from "./services/competitor-ingest";
+import { importYouTubeForUser, ingestAllYouTubeForUser } from "./services/youtube-bootstrap";
+import { tagUntagged } from "./services/viral-tagger";
 import * as openaiService from "./services/openai";
 import * as anthropicService from "./services/anthropic";
 import * as geminiService from "./services/gemini";
@@ -1367,6 +1369,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Google OAuth URL with YouTube read-only scope (for bootstrapping
+  // the user's tracked creators + liked videos into the recommender).
+  app.get('/api/auth/google/youtube', (req, res) => {
+    try {
+      if (!isGoogleAuthConfigured()) {
+        return res.status(400).json({
+          error: 'Google OAuth is not configured.',
+          missingCredentials: true,
+        });
+      }
+      const state = `yt_${Math.random().toString(36).slice(2, 15)}`;
+      req.session.linkedinConnectState = state; // reuse transient state field
+      req.session.save(() => {
+        const authUrl = getGoogleAuthURL({ includeYouTube: true, state });
+        res.status(200).json({ authUrl });
+      });
+    } catch (error) {
+      console.error('Error generating Google/YouTube auth URL:', error);
+      return res.status(500).json({ message: 'Failed to generate auth URL' });
+    }
+  });
+
   // Google OAuth callback
   app.get('/api/auth/google/callback', async (req, res) => {
     try {
@@ -1385,31 +1409,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get Google user info
       const userInfo = await getGoogleUserInfo(tokenData.access_token);
 
+      // Detect whether the user granted the YouTube read-only scope
+      const grantedScopes = (tokenData as any).scope as string | undefined;
+      const hasYouTubeScope = grantedScopes?.includes('youtube.readonly') ?? false;
+
+      const tokenExpiry = tokenData.expires_in
+        ? new Date(Date.now() + tokenData.expires_in * 1000)
+        : null;
+
       // Check if user exists with this email
       let user = await storage.getUserByEmail(userInfo.email);
 
       if (!user) {
-        // Create new user with Google info
         user = await storage.createUser({
           username: userInfo.email,
-          password: '', // No password for OAuth users
+          password: '',
           email: userInfo.email,
           googleId: userInfo.id,
           name: userInfo.name,
-          avatarUrl: userInfo.picture
+          avatarUrl: userInfo.picture,
         });
       } else if (!user.googleId) {
-        // Link Google account to existing user
         await storage.updateUser(user.id, {
           googleId: userInfo.id,
-          avatarUrl: userInfo.picture || user.avatarUrl || undefined
+          avatarUrl: userInfo.picture || user.avatarUrl || undefined,
         });
+      }
+
+      // Persist the access/refresh tokens when the YouTube scope was granted so
+      // we can refresh the feed later without re-prompting the user.
+      if (hasYouTubeScope) {
+        await db
+          .update(usersTable)
+          .set({
+            googleAccessToken: tokenData.access_token,
+            googleRefreshToken: tokenData.refresh_token ?? undefined,
+            googleTokenExpiry: tokenExpiry,
+            googleScopes: grantedScopes ?? null,
+          })
+          .where(eq(usersTable.id, user.id));
       }
 
       // Set session
       req.session.userId = user.id;
       req.session.isAnonymous = false;
       await saveSession(req);
+
+      // If they granted YouTube access, kick off import in the background so
+      // the user lands in the app and /creators is already populated. We don't
+      // await the ingest (can take ~1s per channel) to keep the callback fast.
+      if (hasYouTubeScope) {
+        (async () => {
+          try {
+            const result = await importYouTubeForUser(user!.id, tokenData.access_token);
+            console.log(`[youtube-bootstrap] user ${user!.id}: ${JSON.stringify(result)}`);
+            await ingestAllYouTubeForUser(user!.id, 10);
+            await tagUntagged(40);
+          } catch (err: any) {
+            console.error('[youtube-bootstrap] failed:', err.message);
+          }
+        })();
+      }
 
       res.setHeader('Content-Type', 'text/html');
       res.send(generateOAuthCallbackHTML(serializeUser(user)));
@@ -1868,6 +1928,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(501).json({
       message: 'browser extension ingest endpoint — implementation pending (Phase 2)',
     });
+  });
+
+  // ============ VIRAL INTERACTIONS (feedback signals for the ranker) ============
+
+  const INTERACTION_WEIGHTS: Record<string, number> = {
+    view: 1,
+    use: 5,
+    copy: 3,
+    like: 4,
+    hide: -10,
+    imported_like: 3,
+  };
+
+  app.post('/api/viral/:id/interaction', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const id = parseInt(req.params.id, 10);
+      const { action } = req.body ?? {};
+      if (!Number.isFinite(id)) return res.status(400).json({ message: 'invalid viral id' });
+      if (!action || !(action in INTERACTION_WEIGHTS)) {
+        return res.status(400).json({
+          message: `action must be one of: ${Object.keys(INTERACTION_WEIGHTS).join(', ')}`,
+        });
+      }
+
+      const [viral] = await db
+        .select({ id: curatedVirals.id })
+        .from(curatedVirals)
+        .where(eq(curatedVirals.id, id))
+        .limit(1);
+      if (!viral) return res.status(404).json({ message: 'viral not found' });
+
+      const [created] = await db
+        .insert(viralInteractions)
+        .values({
+          userId,
+          viralId: id,
+          action,
+          weight: INTERACTION_WEIGHTS[action],
+        })
+        .returning();
+
+      return res.json({ interaction: created });
+    } catch (err: any) {
+      console.error('POST /api/viral/:id/interaction:', err);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ============ YOUTUBE MANUAL IMPORT ============
+
+  app.post('/api/integrations/youtube/import', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+      if (!user?.googleAccessToken) {
+        return res.status(400).json({
+          message: 'YouTube not connected. Use "Connect YouTube" first.',
+          authUrl: '/api/auth/google/youtube',
+        });
+      }
+      const result = await importYouTubeForUser(userId, user.googleAccessToken);
+      await ingestAllYouTubeForUser(userId, 10);
+      tagUntagged(40).catch(() => {});
+      return res.json(result);
+    } catch (err: any) {
+      console.error('POST /api/integrations/youtube/import:', err);
+      return res.status(500).json({ message: err.message });
+    }
   });
 
   // ============ BILLING / PADDLE ROUTES ============

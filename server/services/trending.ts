@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { db } from '../db';
-import { trendingContent, curatedVirals, trackedAccounts } from '../../shared/schema';
-import { eq, and, gt, desc, sql, or } from 'drizzle-orm';
+import { trendingContent, curatedVirals, trackedAccounts, viralInteractions } from '../../shared/schema';
+import { eq, and, gt, desc, sql, or, inArray, sum } from 'drizzle-orm';
 
 // Cache durations
 const CACHE_DURATION = {
@@ -373,6 +373,28 @@ export async function getTrendingContent(options: TrendingQueryOptions) {
   return results;
 }
 
+// Weights used by the ranker. Tuned for explainability; adjust as we collect
+// more interaction data.
+const RANK_WEIGHTS = {
+  trackedCreator: 5,
+  topicOverlapPer: 3,
+  engagementVelocity: 0.5,
+  freshness: 1,
+  positiveInteraction: 2,
+  hiddenCreatorPenalty: -50,
+};
+
+interface ScoredViral {
+  viral: typeof curatedVirals.$inferSelect;
+  score: number;
+  reasons: string[];
+}
+
+function hoursSince(d: Date | null | undefined): number {
+  if (!d) return 24 * 365; // treat missing date as a year old
+  return Math.max(1, (Date.now() - new Date(d).getTime()) / 3_600_000);
+}
+
 export async function getCuratedVirals(options: {
   platform?: string;
   category?: string;
@@ -382,46 +404,147 @@ export async function getCuratedVirals(options: {
   const { platform, category, limit = 20, userId } = options;
 
   const conditions = [eq(curatedVirals.isActive, true)];
+  if (platform && platform !== 'all') conditions.push(eq(curatedVirals.platform, platform));
+  if (category && category !== 'all') conditions.push(eq(curatedVirals.category, category));
 
-  if (platform && platform !== 'all') {
-    conditions.push(eq(curatedVirals.platform, platform));
+  // Anonymous / no user context → fall back to views-sorted.
+  if (!userId) {
+    return db.select().from(curatedVirals)
+      .where(and(...conditions))
+      .orderBy(desc(curatedVirals.views))
+      .limit(limit);
   }
 
-  if (category && category !== 'all') {
-    conditions.push(eq(curatedVirals.category, category));
-  }
+  // ---- Gather user context ----
 
-  // If this user has tracked accounts, surface their ingested posts first.
-  // Order: user's tracked posts (newest first) → everything else (by views).
-  if (userId) {
-    const userAccountIds = await db
-      .select({ id: trackedAccounts.id })
-      .from(trackedAccounts)
-      .where(eq(trackedAccounts.userId, userId));
+  const [userAccounts, interactions] = await Promise.all([
+    db.select().from(trackedAccounts).where(eq(trackedAccounts.userId, userId)),
+    db.select().from(viralInteractions).where(eq(viralInteractions.userId, userId)).limit(500),
+  ]);
 
-    if (userAccountIds.length > 0) {
-      const ids = userAccountIds.map((r) => r.id);
-      const userSource = sql`COALESCE(${curatedVirals.trackedAccountId} IN (${sql.join(ids.map((i) => sql`${i}`), sql`, `)}), false)`;
-      const results = await db.select()
-        .from(curatedVirals)
-        .where(and(...conditions))
-        .orderBy(
-          desc(userSource),
-          sql`${curatedVirals.publishedAt} DESC NULLS LAST`,
-          desc(curatedVirals.views),
-        )
-        .limit(limit);
-      return results;
+  const trackedIds = new Set(userAccounts.map((a) => a.id));
+  const trackedHandles = new Set(
+    userAccounts.map((a) => `${a.platform}:${a.handle.toLowerCase()}`),
+  );
+
+  const positiveInteractionsByViral = new Map<number, number>();
+  const hiddenCreators = new Set<string>(); // `${platform}:${authorHandle}`
+
+  for (const i of interactions) {
+    if (i.weight > 0) {
+      positiveInteractionsByViral.set(
+        i.viralId,
+        (positiveInteractionsByViral.get(i.viralId) ?? 0) + i.weight,
+      );
     }
   }
 
-  const results = await db.select()
+  // Which creators did the user explicitly hide?
+  const hidingInteractions = interactions.filter((i) => i.action === 'hide');
+  if (hidingInteractions.length > 0) {
+    const hiddenViralIds = hidingInteractions.map((i) => i.viralId);
+    const hiddenRows = await db
+      .select({ platform: curatedVirals.platform, authorHandle: curatedVirals.authorHandle })
+      .from(curatedVirals)
+      .where(inArray(curatedVirals.id, hiddenViralIds));
+    for (const r of hiddenRows) {
+      if (r.authorHandle) hiddenCreators.add(`${r.platform}:${r.authorHandle.toLowerCase()}`);
+    }
+  }
+
+  // Positive-signal topics: topics of posts the user has interacted with positively.
+  const positiveViralIds = Array.from(positiveInteractionsByViral.keys());
+  const topicWeights = new Map<string, number>();
+  if (positiveViralIds.length > 0) {
+    const positiveRows = await db
+      .select({ id: curatedVirals.id, topics: curatedVirals.topics })
+      .from(curatedVirals)
+      .where(inArray(curatedVirals.id, positiveViralIds));
+    for (const r of positiveRows) {
+      const w = positiveInteractionsByViral.get(r.id) ?? 0;
+      for (const t of r.topics ?? []) {
+        topicWeights.set(t, (topicWeights.get(t) ?? 0) + w);
+      }
+    }
+  }
+
+  // ---- Fetch a candidate pool larger than `limit` so we can rank + diversify. ----
+
+  const CANDIDATE_POOL = Math.max(limit * 6, 80);
+  const candidates = await db.select()
     .from(curatedVirals)
     .where(and(...conditions))
-    .orderBy(desc(curatedVirals.views))
-    .limit(limit);
+    .orderBy(sql`${curatedVirals.publishedAt} DESC NULLS LAST`, desc(curatedVirals.views))
+    .limit(CANDIDATE_POOL);
 
-  return results;
+  // ---- Score each candidate ----
+
+  const scored: ScoredViral[] = candidates.map((v) => {
+    const reasons: string[] = [];
+    let score = 0;
+
+    if (v.trackedAccountId && trackedIds.has(v.trackedAccountId)) {
+      score += RANK_WEIGHTS.trackedCreator;
+      reasons.push(`+${RANK_WEIGHTS.trackedCreator} tracked`);
+    }
+
+    const topicOverlap = (v.topics ?? []).reduce((acc, t) => acc + (topicWeights.get(t) ?? 0), 0);
+    if (topicOverlap > 0) {
+      const bump = Math.min(topicOverlap, 15) * (RANK_WEIGHTS.topicOverlapPer / 5);
+      score += bump;
+      reasons.push(`+${bump.toFixed(1)} topic-match`);
+    }
+
+    const ageH = hoursSince(v.publishedAt);
+    const velocity = Math.log10(Math.max(1, (v.views ?? 0) / ageH));
+    score += velocity * RANK_WEIGHTS.engagementVelocity;
+
+    // Freshness: gentle decay over 30 days, then ~0.
+    const freshness = Math.max(0, 1 - ageH / (24 * 30)) * RANK_WEIGHTS.freshness;
+    score += freshness;
+
+    const positiveW = positiveInteractionsByViral.get(v.id) ?? 0;
+    if (positiveW > 0) {
+      score += Math.min(positiveW, 10) * (RANK_WEIGHTS.positiveInteraction / 5);
+    }
+
+    const creatorKey = `${v.platform}:${(v.authorHandle ?? '').toLowerCase()}`;
+    if (hiddenCreators.has(creatorKey)) {
+      score += RANK_WEIGHTS.hiddenCreatorPenalty;
+      reasons.push('hidden');
+    }
+
+    return { viral: v, score, reasons };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  // ---- Diversity: no more than 2 from the same creator in the top slice ----
+  const MAX_PER_CREATOR = 2;
+  const perCreatorCount = new Map<string, number>();
+  const picked: typeof curatedVirals.$inferSelect[] = [];
+  for (const s of scored) {
+    if (picked.length >= limit) break;
+    const key = `${s.viral.platform}:${(s.viral.authorHandle ?? '').toLowerCase()}`;
+    const count = perCreatorCount.get(key) ?? 0;
+    if (count >= MAX_PER_CREATOR) continue;
+    if (s.score <= RANK_WEIGHTS.hiddenCreatorPenalty / 2) continue; // skip suppressed
+    picked.push(s.viral);
+    perCreatorCount.set(key, count + 1);
+  }
+
+  // Fallback: if diversity trimmed too aggressively, pad with next-best picks.
+  if (picked.length < limit) {
+    const pickedIds = new Set(picked.map((p) => p.id));
+    for (const s of scored) {
+      if (picked.length >= limit) break;
+      if (pickedIds.has(s.viral.id)) continue;
+      if (s.score <= RANK_WEIGHTS.hiddenCreatorPenalty / 2) continue;
+      picked.push(s.viral);
+    }
+  }
+
+  return picked;
 }
 
 // ============ REFRESH JOB ============

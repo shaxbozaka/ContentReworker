@@ -25,27 +25,30 @@ const BASE_URL = process.env.BASE_URL || 'https://aicontentrepurposer.com';
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || `${BASE_URL}/api/auth/google/callback`;
 
 // Google OAuth scopes
-const GOOGLE_SCOPES = [
-  'openid',
-  'email',
-  'profile'
-].join(' ');
+const GOOGLE_BASE_SCOPES = ['openid', 'email', 'profile'];
+const YOUTUBE_SCOPES = ['https://www.googleapis.com/auth/youtube.readonly'];
 
-// Generate Google OAuth URL
-export function getGoogleAuthURL(): string {
+// Generate Google OAuth URL. `includeYouTube` adds the read-only YouTube scope
+// so we can fetch the user's subscriptions + liked videos to bootstrap their
+// tracked creators and preference signals.
+export function getGoogleAuthURL(options: { includeYouTube?: boolean; state?: string } = {}): string {
   if (!GOOGLE_CLIENT_ID) {
     throw new Error('GOOGLE_CLIENT_ID is not configured');
   }
+
+  const scopes = options.includeYouTube
+    ? [...GOOGLE_BASE_SCOPES, ...YOUTUBE_SCOPES]
+    : GOOGLE_BASE_SCOPES;
 
   const baseUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: GOOGLE_REDIRECT_URI,
-    scope: GOOGLE_SCOPES,
+    scope: scopes.join(' '),
     access_type: 'offline',
     prompt: 'consent',
-    state: Math.random().toString(36).substring(2, 15),
+    state: options.state ?? Math.random().toString(36).substring(2, 15),
   });
 
   return `${baseUrl}?${params.toString()}`;

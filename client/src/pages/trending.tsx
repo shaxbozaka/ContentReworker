@@ -21,6 +21,8 @@ import {
   Instagram,
   Twitter,
   Music2,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -140,12 +142,34 @@ export default function TrendingPage() {
   });
 
   const items: TrendingItem[] = data || [];
+  const [hiddenIds, setHiddenIds] = useState<Set<number | string>>(new Set());
+  const [likedIds, setLikedIds] = useState<Set<number | string>>(new Set());
+
+  // Extract the raw curated_virals.id from our prefixed ids (e.g. "curated-123" → 123)
+  const rawId = (id: number | string) =>
+    typeof id === "string" && id.startsWith("curated-") ? parseInt(id.slice(8), 10) : Number(id);
+
+  const recordInteraction = async (itemId: number | string, action: "use" | "copy" | "like" | "hide" | "view") => {
+    try {
+      const id = rawId(itemId);
+      if (!Number.isFinite(id)) return;
+      await fetch(`/api/viral/${id}/interaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+        credentials: "include",
+      });
+    } catch {
+      // Non-critical — don't bother the user with a toast
+    }
+  };
 
   const handleCopy = async (item: TrendingItem) => {
     const text = item.content || item.hook || item.title;
     await navigator.clipboard.writeText(text);
     setCopiedId(item.id);
     toast({ title: "Copied!" });
+    recordInteraction(item.id, "copy");
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -154,7 +178,22 @@ export default function TrendingPage() {
     setContent(text);
     navigate("/");
     toast({ title: "Content loaded", description: "Ready to repurpose" });
+    recordInteraction(item.id, "use");
   };
+
+  const handleLike = (item: TrendingItem) => {
+    setLikedIds((prev) => new Set(prev).add(item.id));
+    recordInteraction(item.id, "like");
+    toast({ title: "Got it — more like this" });
+  };
+
+  const handleHide = (item: TrendingItem) => {
+    setHiddenIds((prev) => new Set(prev).add(item.id));
+    recordInteraction(item.id, "hide");
+    toast({ title: "Hidden — less of this creator" });
+  };
+
+  const visibleItems = items.filter((i) => !hiddenIds.has(i.id));
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0f0f0f]">
@@ -211,7 +250,7 @@ export default function TrendingPage() {
           <div className="py-20 text-center">
             <Loader2 className="w-6 h-6 text-white/30 animate-spin mx-auto" />
           </div>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <div className="py-20 text-center border border-white/10 rounded-xl">
             <p className="text-white/50 mb-2 text-lg">No content yet</p>
             <p className="text-white/30 mb-6 text-sm max-w-md mx-auto">
@@ -226,7 +265,7 @@ export default function TrendingPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const PlatformIcon = getPlatformIcon(item.platform || item.source);
               return (
               <div
@@ -311,6 +350,22 @@ export default function TrendingPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleLike(item)}
+                      title="More like this"
+                      className={`p-2 rounded-lg hover:bg-white/10 ${
+                        likedIds.has(item.id) ? "text-green-400" : "text-white/40 hover:text-white"
+                      }`}
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleHide(item)}
+                      title="Less of this creator"
+                      className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10"
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                    </button>
                     {item.externalUrl && item.externalUrl !== "#" && (
                       <a
                         href={item.externalUrl}

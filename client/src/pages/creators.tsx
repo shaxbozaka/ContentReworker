@@ -16,6 +16,7 @@ import {
   Plus,
   Loader2,
   Clock,
+  Sparkles,
 } from "lucide-react";
 
 type Platform = "youtube" | "linkedin" | "instagram" | "tiktok" | "twitter";
@@ -96,6 +97,79 @@ function formatAge(iso: string | null): string {
   return `${days}d ago`;
 }
 
+function ConnectYouTubeCard() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const connect = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/auth/google/youtube");
+      if (!res.ok) throw new Error("Could not start YouTube connect flow");
+      const data = await res.json();
+      window.location.href = data.authUrl;
+      return data;
+    },
+  });
+
+  const reimport = useMutation({
+    mutationFn: async () =>
+      apiRequest<{ subscriptions: { added: number; skipped: number }; likes: { seeded: number } }>(
+        "/api/integrations/youtube/import",
+        { method: "POST" },
+      ),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["tracked-accounts"] });
+      qc.invalidateQueries({ queryKey: ["trending"] });
+      toast({
+        title: `Imported ${r.subscriptions.added} subscriptions`,
+        description: r.likes.seeded > 0 ? `Seeded ${r.likes.seeded} liked-video signals for ranking.` : undefined,
+      });
+    },
+    onError: (err: Error) => {
+      if (err.message.includes("not connected")) {
+        toast({
+          title: "Not connected yet",
+          description: "Click Connect YouTube first.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: err.message, variant: "destructive" });
+      }
+    },
+  });
+
+  return (
+    <div className="rounded-xl border border-amber-300/20 bg-gradient-to-r from-amber-300/5 to-transparent p-4 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <Sparkles className="w-5 h-5 text-amber-300" />
+        <div>
+          <p className="text-sm font-semibold text-white">Bootstrap from your YouTube account</p>
+          <p className="text-xs text-white/50">
+            We'll import your subscriptions as tracked creators and use your liked videos to personalize the feed.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => reimport.mutate()}
+          disabled={reimport.isPending}
+          className="border-white/15 bg-transparent text-white hover:bg-white/10"
+        >
+          {reimport.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Re-sync"}
+        </Button>
+        <Button
+          onClick={() => connect.mutate()}
+          disabled={connect.isPending}
+          className="bg-white text-black hover:bg-white/90"
+        >
+          {connect.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Connect YouTube"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function CreatorsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -163,9 +237,11 @@ export default function CreatorsPage() {
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-semibold text-white tracking-tight mb-2">Creators</h1>
-          <p className="text-white/40">
+          <p className="text-white/40 mb-5">
             Track competitors and creators you admire. We'll pull their recent posts into your Ideas feed.
           </p>
+
+          <ConnectYouTubeCard />
         </div>
 
         <div className="space-y-8">
