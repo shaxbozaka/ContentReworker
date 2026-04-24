@@ -1,72 +1,94 @@
 import { Link } from "wouter";
+import { Linkedin, PenLine } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-50 border-t border-gray-200 mt-12" role="contentinfo" aria-label="Site footer">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="flex items-center mb-4 md:mb-0">
-            <svg className="h-6 w-6 text-primary" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-            </svg>
-            <span className="ml-2 text-sm text-gray-600">AI Content Repurposing Assistant</span>
+    <footer className="border-t border-slate-200 bg-white" role="contentinfo" aria-label="Site footer">
+      <div className="section-shell py-10">
+        <div className="grid gap-8 md:grid-cols-[1.4fr_0.6fr_0.6fr]">
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-slate-950 text-white">
+                <PenLine className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="block font-black tracking-tight text-slate-950">Content Reworker</span>
+                <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">LinkedIn-first AI</span>
+              </div>
+            </div>
+            <p className="max-w-sm text-sm leading-6 text-slate-600">
+              Turn long-form content into LinkedIn posts with hook variations, publishing controls, and creator workflow tools.
+            </p>
+            <a
+              href="https://linkedin.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-[rgb(var(--color-linkedin))]"
+              aria-label="LinkedIn"
+            >
+              <Linkedin className="h-4 w-4" />
+            </a>
           </div>
-          
-          <nav aria-label="Footer navigation">
-            <ul className="flex space-x-6">
-              <li>
-                <a href="https://aicontentrepurposer.com/help" className="text-sm text-gray-600 hover:text-gray-900">Help &amp; Documentation</a>
-              </li>
-              <li>
-                <Link href="/privacy-policy">
-                  <span className="text-sm text-gray-600 hover:text-gray-900 cursor-pointer">Privacy Policy</span>
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms-of-service">
-                  <span className="text-sm text-gray-600 hover:text-gray-900 cursor-pointer">Terms of Service</span>
-                </Link>
-              </li>
-              <li>
-                <a href="mailto:contact@aicontentrepurposer.com" className="text-sm text-gray-600 hover:text-gray-900">Contact</a>
-              </li>
-            </ul>
-          </nav>
-        </div>
-        
-        <div className="mt-8 pt-4 border-t border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm">
-            <div>
-              <h2 className="font-semibold text-gray-900 mb-4">About Our AI Content Tools</h2>
-              <p className="text-gray-600">AI Content Repurposing Assistant helps creators and marketers transform long-form content into platform-specific formats using advanced AI technology from OpenAI and Anthropic.</p>
-            </div>
-            
-            <div>
-              <h2 className="font-semibold text-gray-900 mb-4">Supported Content Types</h2>
-              <ul className="space-y-2 text-gray-600">
-                <li>Blog Posts &amp; Articles</li>
-                <li>YouTube Transcripts</li>
-                <li>Podcast Content</li>
-                <li>Long-form Social Posts</li>
+
+          <div>
+            <h4 className="mb-4 text-sm font-black text-slate-950">Product</h4>
+            <nav aria-label="Product links">
+              <ul className="space-y-3">
+                <li>
+                  <Link href="/pricing">
+                    <span className="cursor-pointer text-sm font-semibold text-slate-600 transition hover:text-slate-950">
+                      Pricing
+                    </span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/">
+                    <span className="cursor-pointer text-sm font-semibold text-slate-600 transition hover:text-slate-950">
+                      Generator
+                    </span>
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="mailto:hello@aicontentrepurposer.com"
+                    className="text-sm font-semibold text-slate-600 transition hover:text-slate-950"
+                  >
+                    Contact
+                  </a>
+                </li>
               </ul>
-            </div>
-            
-            <div>
-              <h2 className="font-semibold text-gray-900 mb-4">Platform Optimization</h2>
-              <ul className="space-y-2 text-gray-600">
-                <li>Twitter/X Threads</li>
-                <li>LinkedIn Professional Posts</li>
-                <li>Instagram Captions</li>
-                <li>Email Newsletters</li>
-                <li>Content Calendars</li>
+            </nav>
+          </div>
+
+          <div>
+            <h4 className="mb-4 text-sm font-black text-slate-950">Legal</h4>
+            <nav aria-label="Legal links">
+              <ul className="space-y-3">
+                <li>
+                  <Link href="/privacy-policy">
+                    <span className="cursor-pointer text-sm font-semibold text-slate-600 transition hover:text-slate-950">
+                      Privacy Policy
+                    </span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms-of-service">
+                    <span className="cursor-pointer text-sm font-semibold text-slate-600 transition hover:text-slate-950">
+                      Terms of Service
+                    </span>
+                  </Link>
+                </li>
               </ul>
-            </div>
+            </nav>
           </div>
         </div>
-        
-        <div className="mt-8 text-center text-xs text-gray-500">
-          <p>© {new Date().getFullYear()} AI Content Repurposing Assistant. All rights reserved.</p>
-          <p className="mt-2">Powered by OpenAI GPT-4 and Anthropic Claude AI technology.</p>
+
+        <div className="mt-10 flex flex-col gap-3 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} Content Reworker. All rights reserved.</p>
+          <p className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            Systems operational
+          </p>
         </div>
       </div>
     </footer>

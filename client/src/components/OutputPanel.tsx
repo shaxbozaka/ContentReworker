@@ -1,99 +1,129 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { useContent } from "@/context/ContentContext";
 import PlatformOutput from "./PlatformOutput";
 import ExportOptions from "./ExportOptions";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
 import { platformTypes } from "@shared/schema";
+import { Hash, Instagram, Linkedin, Loader2, Mail } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 export default function OutputPanel() {
-  const { outputs, activeTab, setActiveTab, isPlatformSelected } = useContent();
-  
+  const { outputs, activeTab, setActiveTab, isPlatformSelected, transformationId, isRepurposing } = useContent();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const hadOutputsRef = useRef(!!outputs);
+
+  useEffect(() => {
+    if (!hadOutputsRef.current && outputs && panelRef.current) {
+      panelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    hadOutputsRef.current = !!outputs;
+  }, [outputs]);
+
   // Filter available platforms to only those selected by the user
   const availablePlatforms = platformTypes.filter(platform => isPlatformSelected(platform));
-  
-  return (
-    <Card className="bg-white rounded-lg shadow">
-      <CardContent className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Repurposed Content</h2>
 
-        {outputs && (
-          <div className="mb-4">
-            <Alert className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-sm">
-              <Info className="h-4 w-4 text-primary mr-2" />
-              <AlertDescription className="text-gray-600">
-                Your content has been repurposed for the selected platforms. Preview each version below.
-              </AlertDescription>
-            </Alert>
+  // While generating, show a loading state in the output area so the user can see progress
+  if (!outputs && isRepurposing) {
+    return (
+      <div
+        ref={panelRef}
+        id="output-panel"
+        className="animate-fade-in-up stagger-2 flex flex-col items-center gap-3 rounded-xl border border-slate-300 bg-white/70 p-8 text-center"
+      >
+        <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+        <p className="text-sm font-medium text-slate-600">Generating your LinkedIn post…</p>
+      </div>
+    );
+  }
+
+  // If no outputs yet, show a simple preview placeholder
+  if (!outputs) {
+    return (
+      <div ref={panelRef} id="output-panel" className="animate-fade-in-up stagger-2 rounded-xl border border-dashed border-slate-300 bg-white/50 p-8 text-center">
+        <h3 className="mb-2 text-base font-semibold tracking-tight text-slate-700">
+          Output appears here
+        </h3>
+        <p className="mx-auto max-w-sm text-sm leading-6 text-slate-500">
+          Paste content above and click Create LinkedIn Post.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={panelRef} id="output-panel" className="surface-panel animate-fade-in-up stagger-2 rounded-lg p-5 sm:p-6">
+      <div className="mb-4">
+        <h2 className="text-base font-semibold tracking-tight text-slate-950">Output</h2>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-slate-200 pb-4">
+        {availablePlatforms.map((platform) => (
+          <button
+            key={platform}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all duration-200 ${
+              activeTab === platform
+                ? getPlatformTabStyles(platform)
+                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-950"
+            }`}
+            onClick={() => setActiveTab(platform)}
+          >
+            {(() => {
+              const Icon = getPlatformIcon(platform);
+              return <Icon className="h-4 w-4" />;
+            })()}
+            {platform}
+          </button>
+        ))}
+      </div>
+
+      {/* Platform Content */}
+      <div>
+        {availablePlatforms.map((platform) => (
+          <div
+            key={platform}
+            style={{ display: activeTab === platform ? 'block' : 'none' }}
+          >
+            <PlatformOutput
+              platform={platform}
+              content={outputs[platform]?.content || ''}
+              characterCount={outputs[platform]?.characterCount}
+              hooks={outputs[platform]?.hooks}
+              body={outputs[platform]?.body}
+              cta={outputs[platform]?.cta}
+              transformationId={transformationId}
+            />
           </div>
-        )}
-        
-        {/* Platform Tabs */}
-        {outputs && (
-          <div className="border-b border-gray-200 mb-4">
-            <nav className="-mb-px flex space-x-4" aria-label="Platforms">
-              {availablePlatforms.map((platform) => (
-                <button 
-                  key={platform}
-                  className={`py-2 px-1 text-sm font-medium border-b-2 ${
-                    activeTab === platform
-                      ? "border-primary text-primary"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                  onClick={() => setActiveTab(platform)}
-                >
-                  <i className={`${getPlatformIcon(platform)} mr-1`}></i> {platform}
-                </button>
-              ))}
-            </nav>
-          </div>
-        )}
-        
-        {/* Platform Content */}
-        <div className="space-y-4">
-          {outputs && availablePlatforms.map((platform) => (
-            <div 
-              key={platform}
-              style={{ display: activeTab === platform ? 'block' : 'none' }}
-            >
-              <PlatformOutput 
-                platform={platform} 
-                content={outputs[platform]?.content || ''} 
-                characterCount={outputs[platform]?.characterCount}
-              />
-            </div>
-          ))}
-          
-          {!outputs && (
-            <div className="text-center py-12 text-gray-500">
-              <i className="fas fa-magic text-4xl mb-3"></i>
-              <p>Enter your content and click "Repurpose Content" to get started.</p>
-            </div>
-          )}
-        </div>
-        
-        {/* Export Options */}
-        {outputs && <ExportOptions />}
-      </CardContent>
-    </Card>
+        ))}
+      </div>
+
+      {/* Export Options */}
+      <ExportOptions />
+    </div>
   );
 }
 
-function getPlatformIcon(platform: string): string {
+function getPlatformIcon(platform: string) {
+  switch (platform) {
+    case "LinkedIn":
+      return Linkedin;
+    case "Instagram":
+      return Instagram;
+    case "Email":
+      return Mail;
+    default:
+      return Hash;
+  }
+}
+
+function getPlatformTabStyles(platform: string): string {
   switch (platform) {
     case 'Twitter':
-      return 'fab fa-twitter';
+      return 'border border-slate-950 bg-slate-950 text-white shadow-sm';
     case 'LinkedIn':
-      return 'fab fa-linkedin';
+      return 'border border-[rgb(var(--color-linkedin))] bg-[rgb(var(--color-linkedin))] text-white shadow-sm';
     case 'Instagram':
-      return 'fab fa-instagram';
+      return 'border border-[rgb(var(--color-coral))] bg-[rgb(var(--color-coral))] text-white shadow-sm';
     case 'Email':
-      return 'fas fa-envelope';
-    case 'Summary':
-      return 'fas fa-list';
-    case 'Calendar':
-      return 'fas fa-calendar-alt';
+      return 'border border-slate-700 bg-slate-700 text-white shadow-sm';
     default:
-      return 'fas fa-file-alt';
+      return 'border border-slate-950 bg-slate-950 text-white';
   }
 }

@@ -171,16 +171,14 @@ function getPlatformPrompt(platform: PlatformType, contentSource: ContentSource,
   // Platform-specific prompts
   const platformPrompts: Record<PlatformType, string> = {
     Twitter: `Transform the following ${contentSource.toLowerCase()} into an engaging Twitter thread. Break it into 5-7 tweets that capture the main points. Each tweet should be under 280 characters and compelling on its own, while the thread should flow naturally from one tweet to the next. Number each tweet.`,
-    
+
     LinkedIn: `Transform the following ${contentSource.toLowerCase()} into a professional LinkedIn post that will engage a business audience. Focus on key insights, professional takeaways, and business value. The post should be well-structured with paragraphs, bullet points where appropriate, and a clear call to action at the end.`,
-    
+
     Instagram: `Transform the following ${contentSource.toLowerCase()} into an engaging Instagram caption. The caption should be attention-grabbing, personal, and relatable while conveying the main message. Consider how this would appear alongside an image that captures the essence of the content.`,
-    
+
+    Threads: `Transform the following ${contentSource.toLowerCase()} into a Threads post. Keep it under 500 characters, conversational, and casual. Use short paragraphs with line breaks.`,
+
     Email: `Transform the following ${contentSource.toLowerCase()} into an email newsletter segment. Create a compelling subject line followed by the body content that's engaging, valuable, and formatted for easy reading in an email context. Include a clear call to action.`,
-    
-    Summary: `Create a concise summary of the following ${contentSource.toLowerCase()} that captures all the key points in a few paragraphs. The summary should be comprehensive yet brief, highlighting the most important information.`,
-    
-    Calendar: `Transform the following ${contentSource.toLowerCase()} into a content calendar outline with 5-10 derivative content ideas that could be created from this original content. For each idea, provide a brief title/concept and a one-sentence description of what the content would cover.`,
   };
   
   return `${platformPrompts[platform]}\n\nOriginal ${contentSource}:\n"${content}"`;

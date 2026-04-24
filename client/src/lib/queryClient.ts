@@ -3,7 +3,20 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    // Try to parse JSON error message, otherwise use a clean status message
+    let message: string;
+    try {
+      const json = JSON.parse(text);
+      message = json.message || json.error || `${res.status}: ${res.statusText}`;
+    } catch {
+      // If response is HTML (e.g. Cloudflare error page), don't include it
+      if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+        message = `${res.status}: ${res.statusText || "Server error"}`;
+      } else {
+        message = `${res.status}: ${text}`;
+      }
+    }
+    throw new Error(message);
   }
 }
 
@@ -11,9 +24,15 @@ export async function apiRequest<T = any>(
   url: string,
   options?: RequestInit,
 ): Promise<T> {
+  const headers: HeadersInit = {
+    ...(options?.body ? { "Content-Type": "application/json" } : {}),
+    ...options?.headers,
+  };
+
   const res = await fetch(url, {
     credentials: "include",
     ...options,
+    headers,
   });
 
   await throwIfResNotOk(res);

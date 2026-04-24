@@ -3,11 +3,238 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-ink: 17 24 39;
+    --color-graphite: 35 45 62;
+    --color-paper: 246 248 252;
+    --color-panel: 255 255 255;
+    --color-mist: 226 232 240;
+    --color-linkedin: 10 102 194;
+    --color-linkedin-dark: 0 79 146;
+    --color-lime: 181 255 70;
+    --color-coral: 255 107 85;
+    --color-violet: 111 76 255;
+
+    --background: 216 33% 97%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 206 90% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 215 28% 92%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 82 100% 64%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 4 86% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 24% 88%;
+    --input: 214 24% 88%;
+    --ring: 206 90% 40%;
+    --radius: 0.625rem;
+  }
+
   * {
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+    background: hsl(var(--background));
+  }
+
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply antialiased;
+    min-width: 320px;
+    overflow-x: hidden;
+    font-family: "Inter", "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f8fafc;
+    color: hsl(var(--foreground));
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background: rgba(10, 102, 194, 0.18);
+    color: rgb(var(--color-ink));
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .app-page {
+    @apply min-h-screen flex flex-col;
+    background: #f8fafc;
+  }
+
+  .app-page-dark {
+    @apply min-h-screen flex flex-col;
+    background:
+      radial-gradient(circle at 20% 0%, rgba(181,255,70,0.12), transparent 24rem),
+      linear-gradient(180deg, #101827 0%, #172033 42rem, #101827 100%);
+    color: white;
+  }
+
+  .section-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .heading-display {
+    font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+    font-weight: 800;
+    line-height: 0.98;
+    letter-spacing: 0;
+  }
+
+  .text-gradient {
+    color: rgb(var(--color-linkedin));
+  }
+
+  .surface-panel {
+    @apply border border-slate-200 bg-white;
+  }
+
+  .surface-panel-dark {
+    @apply border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-xl;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .card-dark {
+    @apply surface-panel;
+  }
+
+  .metric-tile {
+    @apply rounded-lg border border-slate-200 bg-white p-4;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white transition-all duration-200;
+    background: rgb(var(--color-linkedin));
+  }
+
+  .btn-primary:hover {
+    background: rgb(var(--color-linkedin-dark));
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition-all duration-200;
+  }
+
+  .btn-secondary:hover {
+    @apply border-slate-400 bg-white;
+  }
+
+  .btn-ghost-dark {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition-all duration-200;
+  }
+
+  .btn-ghost-dark:hover {
+    @apply bg-white/20;
+  }
+
+  .input-dark {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 transition-all duration-200;
+  }
+
+  .input-dark::placeholder {
+    color: rgb(100 116 139);
+  }
+
+  .input-dark:focus {
+    outline: none;
+    border-color: rgba(10, 102, 194, 0.55);
+    box-shadow: 0 0 0 4px rgba(10, 102, 194, 0.10);
+  }
+
+  .status-pill {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold;
+  }
+
+  .hairline-grid {
+    background-image:
+      linear-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .stagger-1 { animation-delay: 0.08s; }
+  .stagger-2 { animation-delay: 0.16s; }
+  .stagger-3 { animation-delay: 0.24s; }
+  .stagger-4 { animation-delay: 0.32s; }
+  .stagger-5 { animation-delay: 0.40s; }
+}
+
+@layer utilities {
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.55s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.45s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(10, 102, 194, 0.18); }
+    50% { box-shadow: 0 0 0 10px rgba(10, 102, 194, 0); }
+  }
+
+  .animate-pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
   }
 }

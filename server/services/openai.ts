@@ -1,8 +1,9 @@
 import OpenAI from "openai";
-import type { 
-  TransformationRequest, 
-  TransformationResponse, 
+import type {
+  TransformationRequest,
+  TransformationResponse,
   PlatformType,
+  PlatformOutput,
   ContentSource,
   ToneType
 } from "@shared/schema";
@@ -55,7 +56,7 @@ export async function repurposeContent(request: TransformationRequest): Promise<
   return outputs;
 }
 
-export async function regenerateContent(request: RegenerationRequest): Promise<{ content: string, characterCount: number }> {
+export async function regenerateContent(request: RegenerationRequest): Promise<PlatformOutput> {
   const { content, contentSource, platform, tone, outputLength, useHashtags, useEmojis } = request;
   
   // Prepare system instructions
@@ -70,11 +71,97 @@ export async function regenerateContent(request: RegenerationRequest): Promise<{
   return output;
 }
 
+// Parse LinkedIn structured output into hooks, body, and CTA
+function parseLinkedInOutput(rawContent: string): PlatformOutput {
+  const hooks: string[] = [];
+  let body = '';
+  let cta = '';
+
+  // Helper to clean quotes and whitespace
+  const cleanText = (text: string): string => {
+    return text
+      .replace(/^["'"]+|["'"]+$/g, '') // Remove surrounding quotes
+      .replace(/^[\s\n]+|[\s\n]+$/g, '') // Trim whitespace
+      .trim();
+  };
+
+  // Extract hooks
+  const hooksMatch = rawContent.match(/---HOOK OPTIONS---\s*([\s\S]*?)\s*---END HOOKS---/);
+  if (hooksMatch) {
+    const hooksSection = hooksMatch[1].trim();
+    // Split by newlines and filter out empty lines
+    const hookLines = hooksSection.split('\n').filter(line => line.trim());
+    hookLines.forEach(line => {
+      // Remove any leading markers like "Hook 1:", "[Hook 1]", "1.", "1)", "- ", etc.
+      let cleanedHook = line
+        .replace(/^(\[?Hook\s*\d+\]?:?|\d+[.\)]\s*|-\s*)/i, '')
+        .trim();
+      // Remove surrounding quotes
+      cleanedHook = cleanText(cleanedHook);
+      if (cleanedHook) {
+        hooks.push(cleanedHook);
+      }
+    });
+  }
+
+  // Extract body
+  const bodyMatch = rawContent.match(/---POST BODY---\s*([\s\S]*?)\s*---END BODY---/);
+  if (bodyMatch) {
+    body = bodyMatch[1].trim();
+
+    // Remove the hook from the start of body if it's duplicated there
+    if (hooks.length > 0) {
+      for (const hook of hooks) {
+        // Check if body starts with the hook (with or without quotes)
+        const hookPattern = new RegExp('^["\']?' + hook.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '["\']?\\s*\\n*', 'i');
+        if (hookPattern.test(body)) {
+          body = body.replace(hookPattern, '').trim();
+          break;
+        }
+        // Also check for quoted version
+        const quotedHook = `"${hook}"`;
+        if (body.startsWith(quotedHook)) {
+          body = body.substring(quotedHook.length).trim();
+          break;
+        }
+      }
+    }
+  }
+
+  // Extract CTA
+  const ctaMatch = rawContent.match(/---CTA---\s*([\s\S]*?)\s*---END CTA---/);
+  if (ctaMatch) {
+    cta = cleanText(ctaMatch[1]);
+  }
+
+  // Build the full content with first hook as default
+  let fullContent = '';
+  if (hooks.length > 0 && body) {
+    fullContent = hooks[0] + '\n\n' + body;
+  } else if (body) {
+    fullContent = body;
+  } else {
+    fullContent = rawContent; // Fallback to raw if parsing failed
+  }
+  if (cta) {
+    fullContent += '\n\n' + cta;
+  }
+
+  return {
+    content: fullContent,
+    characterCount: fullContent.length,
+    hooks: hooks.length > 0 ? hooks : undefined,
+    body: body || undefined,
+    cta: cta || undefined,
+    selectedHook: hooks.length > 0 ? 0 : undefined,
+  };
+}
+
 async function generateContent(
-  systemInstructions: string, 
-  prompt: string, 
+  systemInstructions: string,
+  prompt: string,
   platform: PlatformType
-): Promise<{ content: string, characterCount: number }> {
+): Promise<PlatformOutput> {
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -83,13 +170,21 @@ async function generateContent(
         { role: "user", content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: 1500, // Increased for structured LinkedIn output
     });
-    
-    const content = response.choices[0].message.content || "";
-    const characterCount = content.length;
-    
-    return { content, characterCount };
+
+    const rawContent = response.choices[0].message.content || "";
+
+    // For LinkedIn, parse the structured output
+    if (platform === "LinkedIn") {
+      return parseLinkedInOutput(rawContent);
+    }
+
+    // For other platforms, return simple format
+    return {
+      content: rawContent,
+      characterCount: rawContent.length,
+    };
   } catch (error) {
     console.error(`Error generating content for ${platform}:`, error);
     throw new Error(`Failed to generate content for ${platform}`);
@@ -155,12 +250,41 @@ function getPlatformPrompt(platform: PlatformType, contentSource: ContentSource,
     case "LinkedIn":
       return `
         ${basePrompt}
-        
-        Create a professional LinkedIn post that highlights the key insights and valuable takeaways.
-        Include paragraph breaks for readability.
-        Add a call to action at the end.
-        Use a professional tone appropriate for a business audience.
-        Keep it under 3000 characters.
+
+        Create a HIGH-PERFORMING LinkedIn post optimized for engagement. Follow these rules:
+
+        **HOOK (CRITICAL - First 210 characters)**
+        The first line is EVERYTHING. LinkedIn truncates posts at 210 characters in the feed.
+        Provide 3 different hook options, each designed to stop the scroll:
+        - Hook 1: A bold, contrarian statement or hot take
+        - Hook 2: A surprising statistic, result, or "I did X and here's what happened"
+        - Hook 3: A relatable pain point or question that speaks directly to the reader
+
+        **FORMAT**
+        Structure your response EXACTLY like this:
+
+        ---HOOK OPTIONS---
+        [Hook 1]
+        [Hook 2]
+        [Hook 3]
+        ---END HOOKS---
+
+        ---POST BODY---
+        [The rest of the post using the first hook, with these LinkedIn best practices:]
+        - Use single-sentence paragraphs for mobile readability
+        - Add white space between ideas (blank lines)
+        - Keep paragraphs to 1-2 sentences max
+        - Use "you" language to speak directly to the reader
+        - Include a specific insight, lesson, or takeaway
+        - Total post should be 800-1500 characters (sweet spot for engagement)
+        ---END BODY---
+
+        ---CTA---
+        [A natural call-to-action that encourages engagement without being salesy]
+        Example CTAs: "Agree? I'd love to hear your take." / "What would you add?" / "Drop a 🔥 if this resonates"
+        ---END CTA---
+
+        Remember: Write like a human sharing insights, not a marketer selling something.
       `;
     
     case "Instagram":
@@ -181,24 +305,6 @@ function getPlatformPrompt(platform: PlatformType, contentSource: ContentSource,
         Use a clear subject line, greeting, and sign-off.
         Format with short paragraphs, bullet points where appropriate.
         Include a clear call to action.
-      `;
-    
-    case "Summary":
-      return `
-        ${basePrompt}
-        
-        Create a concise bullet-point summary that captures all the key points.
-        Organize points logically with main points and sub-points where needed.
-        Ensure the summary is comprehensive yet easy to scan.
-      `;
-    
-    case "Calendar":
-      return `
-        ${basePrompt}
-        
-        Create a content calendar outline with suggestions for breaking this content into multiple pieces.
-        Include content types (blog, social media, video, etc.), titles, and brief descriptions.
-        Structure it as a weekly plan with specific content pieces for each day.
       `;
     
     default:

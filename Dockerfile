@@ -1,6 +1,9 @@
 # Use Node.js 18 Alpine as the base image
 FROM node:18-alpine
 
+# Install essential packages
+RUN apk add --no-cache ca-certificates
+
 # Set working directory
 WORKDIR /app
 
@@ -30,9 +33,9 @@ USER nextjs
 # Expose port
 EXPOSE 5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/ || exit 1
+# Health check (using wget since curl is not in Alpine)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget --quiet --spider http://0.0.0.0:5000/ || exit 1
 
 # Start the application
 CMD ["npm", "start"]

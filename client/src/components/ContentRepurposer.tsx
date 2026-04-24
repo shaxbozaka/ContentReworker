@@ -3,14 +3,12 @@ import OutputPanel from "./OutputPanel";
 
 export default function ContentRepurposer() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      {/* Input Section */}
-      <div className="lg:col-span-5 space-y-6">
+    <div className="mx-auto grid max-w-4xl grid-cols-1 gap-4">
+      <div>
         <InputPanel />
       </div>
-      
-      {/* Output Section */}
-      <div className="lg:col-span-7">
+
+      <div>
         <OutputPanel />
       </div>
     </div>

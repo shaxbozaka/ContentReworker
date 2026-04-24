@@ -10,6 +10,7 @@ interface LinkedInTokenResponse {
 
 interface LinkedInUserProfile {
   id: string;
+  email?: string;
   localizedFirstName: string;
   localizedLastName: string;
   profilePicture?: {
@@ -32,28 +33,49 @@ interface LinkedInShareRequest {
 // LinkedIn API Configuration
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
-const REPLIT_DEV_URL = 'https://078161fa-ac6d-4f43-9b2a-080cd331a150-00-th11kdzql9ef.janeway.replit.dev';
-const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || `${REPLIT_DEV_URL}/api/auth/linkedin/callback`;
-const LINKEDIN_USER_REDIRECT_URI = process.env.LINKEDIN_USER_REDIRECT_URI || `${REPLIT_DEV_URL}/api/auth/linkedin/user/callback`;
-// Only request scopes that are approved for the app
-// Using only w_member_social which is required for posting content
+const BASE_URL = process.env.BASE_URL || 'https://aicontentrepurposer.com';
+const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI || `${BASE_URL}/api/auth/linkedin/callback`;
+const LINKEDIN_USER_REDIRECT_URI = process.env.LINKEDIN_USER_REDIRECT_URI || `${BASE_URL}/api/auth/linkedin/user/callback`;
+// LinkedIn OAuth scopes - using OpenID Connect
+// openid + profile + email for user info, w_member_social for posting
 const LINKEDIN_SCOPES = [
+  'openid',
+  'profile',
+  'email',
   'w_member_social'
 ].join(' ');
 
-// LinkedIn requires URLs to privacy policy and terms of service
-export const PRIVACY_POLICY_URL = process.env.PRIVACY_POLICY_URL || `${REPLIT_DEV_URL}/privacy-policy`;
-export const TERMS_OF_SERVICE_URL = process.env.TERMS_OF_SERVICE_URL || `${REPLIT_DEV_URL}/terms-of-service`;
+// Login scopes - includes posting permission so users can post right after login
+const LINKEDIN_LOGIN_SCOPES = [
+  'openid',
+  'profile',
+  'email',
+  'w_member_social'  // Enable posting on login
+].join(' ');
 
-// Generate LinkedIn OAuth URL
-export function getLinkedInAuthURL(isUserSpecific: boolean = false): string {
+// LinkedIn requires URLs to privacy policy and terms of service
+export const PRIVACY_POLICY_URL = process.env.PRIVACY_POLICY_URL || `${BASE_URL}/privacy-policy`;
+export const TERMS_OF_SERVICE_URL = process.env.TERMS_OF_SERVICE_URL || `${BASE_URL}/terms-of-service`;
+
+export type LinkedInRedirectType = 'connect' | 'user' | 'login';
+
+function getLinkedInRedirectUri(redirectType: LinkedInRedirectType = 'connect'): string {
+  if (redirectType === 'user') {
+    return LINKEDIN_USER_REDIRECT_URI;
+  }
+
+  return LINKEDIN_REDIRECT_URI;
+}
+
+// Generate LinkedIn OAuth URL for connecting account (with posting permission)
+export function getLinkedInAuthURL(state?: string, redirectType: 'connect' | 'user' = 'user'): string {
   const baseUrl = 'https://www.linkedin.com/oauth/v2/authorization';
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: LINKEDIN_CLIENT_ID as string,
-    redirect_uri: isUserSpecific ? LINKEDIN_USER_REDIRECT_URI : LINKEDIN_REDIRECT_URI,
+    redirect_uri: getLinkedInRedirectUri(redirectType),
     scope: LINKEDIN_SCOPES,
-    state: Math.random().toString(36).substring(2, 15),
+    state: state || Math.random().toString(36).substring(2, 15),
   });
 
   // LinkedIn requires privacy policy and terms of service URLs for API usage
@@ -67,18 +89,35 @@ export function getLinkedInAuthURL(isUserSpecific: boolean = false): string {
   return `${baseUrl}?${params.toString()}`;
 }
 
+// Generate LinkedIn OAuth URL for login (uses main callback with login state)
+export function getLinkedInLoginURL(state?: string): string {
+  const baseUrl = 'https://www.linkedin.com/oauth/v2/authorization';
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: LINKEDIN_CLIENT_ID as string,
+    redirect_uri: getLinkedInRedirectUri('login'),
+    scope: LINKEDIN_LOGIN_SCOPES,
+    state: state || ('login_' + Math.random().toString(36).substring(2, 15)),
+  });
+
+  return `${baseUrl}?${params.toString()}`;
+}
+
+// Check if LinkedIn OAuth is configured
+export function isLinkedInAuthConfigured(): boolean {
+  return !!(LINKEDIN_CLIENT_ID && LINKEDIN_CLIENT_SECRET);
+}
+
 // Exchange authorization code for access token
-export async function getLinkedInAccessToken(code: string, isUserSpecific: boolean = false): Promise<LinkedInTokenResponse> {
+export async function getLinkedInAccessToken(code: string, redirectType: LinkedInRedirectType = 'connect'): Promise<LinkedInTokenResponse> {
   try {
-    const redirectUri = isUserSpecific ? LINKEDIN_USER_REDIRECT_URI : LINKEDIN_REDIRECT_URI;
-    
     const response = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', null, {
       params: {
         grant_type: 'authorization_code',
         code,
         client_id: LINKEDIN_CLIENT_ID,
         client_secret: LINKEDIN_CLIENT_SECRET,
-        redirect_uri: redirectUri,
+        redirect_uri: getLinkedInRedirectUri(redirectType),
       },
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -92,21 +131,26 @@ export async function getLinkedInAccessToken(code: string, isUserSpecific: boole
   }
 }
 
-// Get LinkedIn user profile
+// Get LinkedIn user profile using OpenID Connect userinfo endpoint
 export async function getLinkedInUserProfile(accessToken: string): Promise<LinkedInUserProfile> {
   try {
-    const response = await axios.get('https://api.linkedin.com/v2/me', {
+    const response = await axios.get('https://api.linkedin.com/v2/userinfo', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-      params: {
-        projection: '(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))',
-      },
     });
 
-    return response.data;
-  } catch (error) {
-    console.error('Error getting LinkedIn user profile:', error);
+    // Map OpenID Connect response to our profile format
+    const data = response.data;
+    return {
+      id: data.sub, // OpenID Connect uses 'sub' for user ID
+      email: data.email, // Email from OpenID Connect
+      localizedFirstName: data.given_name || data.name?.split(' ')[0] || 'User',
+      localizedLastName: data.family_name || data.name?.split(' ').slice(1).join(' ') || '',
+      profilePicture: data.picture ? { displayImage: data.picture } : undefined,
+    };
+  } catch (error: any) {
+    console.error('Error getting LinkedIn user profile:', error.response?.data || error.message);
     throw new Error('Failed to get LinkedIn user profile');
   }
 }

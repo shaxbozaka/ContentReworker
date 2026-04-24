@@ -1,7 +1,21 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import MemoryStore from "memorystore";
 import path from "path";
 import { registerRoutes } from "./routes";
+import { startScheduler } from "./services/scheduler";
+import { startPipelineScheduler } from "./services/pipeline-scheduler";
+
+// Extend express-session types
+declare module "express-session" {
+  interface SessionData {
+    userId?: number;
+    isAnonymous?: boolean;
+    linkedinConnectState?: string;
+    linkedinLoginState?: string;
+  }
+}
 
 // Simple log function for production
 const log = (message: string) => {
@@ -20,8 +34,39 @@ const serveStatic = (app: express.Application) => {
 };
 
 const app = express();
-app.use(express.json());
+
+// Trust proxy for production (behind nginx/cloudflare)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// Skip JSON parsing for the billing webhook (needs raw body for signature verification)
+app.use((req, res, next) => {
+  if (req.path === '/api/billing/webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: false }));
+
+// Session store setup
+const MemoryStoreSession = MemoryStore(session);
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'content-reworker-dev-secret',
+  resave: false,
+  saveUninitialized: false,
+  store: new MemoryStoreSession({
+    checkPeriod: 86400000 // prune expired entries every 24h
+  }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  }
+}));
 
 // Serve static files from the public directory
 app.use('/public', express.static(path.join(process.cwd(), 'public')));
@@ -83,8 +128,20 @@ app.use((req, res, next) => {
   server.listen({
     port,
     host: process.env.HOST || "0.0.0.0",
-    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+
+    // Start the post scheduler for processing scheduled posts
+    startScheduler();
+
+    // Start the pipeline scheduler for auto-generating content
+    startPipelineScheduler();
   });
+
+  const shutdown = () => {
+    log('Shutting down...');
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 })();

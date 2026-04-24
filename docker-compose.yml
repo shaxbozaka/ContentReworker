@@ -4,7 +4,7 @@ services:
   app:
     build: .
     ports:
-      - "5000:5000"
+      - "127.0.0.1:3000:5000"
     env_file:
       - .env.production  # Add this line
     depends_on:
@@ -20,12 +20,15 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-contentreworker}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-contentreworker123}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     networks:
       - app-network
+
+
 
 volumes:
   postgres_data:
