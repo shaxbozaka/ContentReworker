@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
+import helmet from "helmet";
 import path from "path";
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
@@ -17,6 +18,7 @@ declare module "express-session" {
     isAnonymous?: boolean;
     linkedinConnectState?: string;
     linkedinLoginState?: string;
+    googleLoginState?: string;
   }
 }
 
@@ -38,10 +40,27 @@ const serveStatic = (app: express.Application) => {
 
 const app = express();
 
+// Don't leak the server framework in response headers.
+app.disable('x-powered-by');
+
 // Trust proxy for production (behind nginx/cloudflare)
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
+
+// Security headers. CSP is opted-out here because a strict default would break
+// the Vite-built bundle (Tailwind inline styles, shadcn dynamic style attrs,
+// Umami analytics on a separate origin). Toggle it on later with a tuned
+// directive set once we have a chance to test end-to-end.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: false }
+    : false,
+}));
 
 // Skip JSON parsing for the billing webhook (needs raw body for signature verification)
 app.use((req, res, next) => {

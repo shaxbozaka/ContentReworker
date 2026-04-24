@@ -514,10 +514,13 @@ export default function PlatformOutput({
       );
     }
 
-    // For other platforms
+    // For other platforms — render as text with CSS-preserved newlines, not
+    // HTML. Using dangerouslySetInnerHTML here was an XSS sink because LLM
+    // output can contain attacker-influenced HTML (prompt injection via the
+    // source content the user pastes).
     return (
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-800" dangerouslySetInnerHTML={{ __html: displayContent.replace(/\n/g, "<br/>") }} />
+        <p className="whitespace-pre-wrap text-sm leading-7 text-slate-800">{displayContent}</p>
       </div>
     );
   };

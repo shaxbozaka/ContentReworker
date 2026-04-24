@@ -8,6 +8,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { ingestForAccount } from "./services/competitor-ingest";
 import { importYouTubeForUser, ingestAllYouTubeForUser } from "./services/youtube-bootstrap";
 import { tagUntagged } from "./services/viral-tagger";
+import { requireAdmin, regenerateSession } from "./middleware/auth";
+import rateLimit from "express-rate-limit";
 import * as openaiService from "./services/openai";
 import * as anthropicService from "./services/anthropic";
 import * as geminiService from "./services/gemini";
@@ -35,6 +37,17 @@ import crypto from "crypto";
 
 const SUPPORTED_SCHEDULED_PLATFORM = 'linkedin';
 const SUPPORTED_PIPELINE_PLATFORM = 'LinkedIn';
+
+// Second line of defence against cookie-rotating cost abuse on the paid LLM
+// endpoint. Per-user (FREE_DAILY_LIMIT=3) caps the legitimate case; this
+// caps the spammer who churns anon users from one IP.
+const repurposeIpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,                   // 20 repurposes per IP per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests from this IP. Please try again later.' },
+});
 
 // Helper to get or create user ID from session
 async function ensureUserId(req: Request): Promise<number> {
@@ -251,7 +264,7 @@ function getProviderFallbackOrder(preferred: string): string[] {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes for content repurposing
-  app.post('/api/repurpose', async (req, res) => {
+  app.post('/api/repurpose', repurposeIpLimiter, async (req, res) => {
     try {
       // Validate the request body
       const validatedData = transformationRequestSchema.parse(req.body);
@@ -435,31 +448,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recent transformations
+  // Recent transformations — scoped to the caller's own user. The
+  // unscoped list endpoint (that previously leaked everyone's content)
+  // is removed; use /api/transformations/history for the authenticated
+  // paginated list.
   app.get('/api/transformations', async (req, res) => {
     try {
-      const transformations = await storage.getRecentTransformations(10);
+      if (!req.session.userId) {
+        return res.status(200).json({ transformations: [] });
+      }
+      const transformations = await storage.getUserTransformations(req.session.userId, { limit: 10, offset: 0 });
       return res.status(200).json({ transformations });
     } catch (error) {
       console.error("Error fetching transformations:", error);
       return res.status(500).json({ message: "Failed to fetch transformations" });
     }
   });
-  
-  // Get a specific transformation with its outputs
+
+  // Get a specific transformation with its outputs — 404s unless the
+  // caller owns the row. Previously IDOR: any numeric id returned any
+  // user's content regardless of ownership.
   app.get('/api/transformations/:id', async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid transformation ID" });
       }
-      
-      const transformation = await storage.getTransformation(id);
-      if (!transformation) {
+      if (!req.session.userId) {
         return res.status(404).json({ message: "Transformation not found" });
       }
-      
+
+      const transformation = await storage.getTransformation(id);
+      if (!transformation || transformation.userId !== req.session.userId) {
+        return res.status(404).json({ message: "Transformation not found" });
+      }
+
       const outputs = await storage.getTransformationOutputs(id);
-      
+
       return res.status(200).json({ transformation, outputs });
     } catch (error) {
       console.error("Error fetching transformation:", error);
@@ -712,10 +737,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storeLinkedInConnection(user.id, profile, tokenData);
 
+      // Session fixation defence: new session ID on privilege elevation.
+      await regenerateSession(req);
       req.session.userId = user.id;
       req.session.isAnonymous = false;
-      delete req.session.linkedinLoginState;
-      delete req.session.linkedinConnectState;
       await saveSession(req);
 
       res.setHeader('Content-Type', 'text/html');
@@ -797,19 +822,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Management Routes
-  
-  // Get all users
-  app.get('/api/users', async (req, res) => {
+
+  // List all users — admin only. Set ADMIN_EMAILS env var to a comma-separated
+  // list of emails that should have access.
+  app.get('/api/users', requireAdmin, async (req, res) => {
     try {
-      // In a real application, you would add pagination and filtering
       const users = await storage.getAllUsers();
-      
-      // Don't send passwords to the frontend
       const sanitizedUsers = users.map(user => ({
         id: user.id,
-        username: user.username
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        plan: user.plan,
+        createdAt: user.createdAt,
       }));
-      
       return res.status(200).json({ users: sanitizedUsers });
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -846,6 +872,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword
       });
 
+      // Session fixation defence.
+      await regenerateSession(req);
       req.session.userId = user.id;
       req.session.isAnonymous = false;
       await saveSession(req);
@@ -883,6 +911,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: 'Invalid username or password' });
       }
 
+      // Session fixation defence.
+      await regenerateSession(req);
       req.session.userId = user.id;
       req.session.isAnonymous = false;
       await saveSession(req);
@@ -1361,8 +1391,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const authUrl = getGoogleAuthURL();
-      res.status(200).json({ authUrl });
+      const state = `g_${Math.random().toString(36).slice(2, 15)}${Math.random().toString(36).slice(2, 15)}`;
+      req.session.googleLoginState = state;
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save failed before Google redirect:', err);
+          return res.status(500).json({ message: 'Failed to prepare auth' });
+        }
+        const authUrl = getGoogleAuthURL({ state });
+        res.status(200).json({ authUrl });
+      });
     } catch (error) {
       console.error('Error generating Google auth URL:', error);
       return res.status(500).json({ message: 'Failed to generate Google auth URL' });
@@ -1379,9 +1417,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           missingCredentials: true,
         });
       }
-      const state = `yt_${Math.random().toString(36).slice(2, 15)}`;
-      req.session.linkedinConnectState = state; // reuse transient state field
-      req.session.save(() => {
+      const state = `yt_${Math.random().toString(36).slice(2, 15)}${Math.random().toString(36).slice(2, 15)}`;
+      req.session.googleLoginState = state;
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save failed before YouTube redirect:', err);
+          return res.status(500).json({ message: 'Failed to prepare auth' });
+        }
         const authUrl = getGoogleAuthURL({ includeYouTube: true, state });
         res.status(200).json({ authUrl });
       });
@@ -1398,10 +1440,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.redirect('/?error=Google+OAuth+not+configured');
       }
 
-      const { code } = req.query;
+      const { code, state } = req.query;
       if (!code) {
         return res.redirect('/?error=Authorization+code+is+required');
       }
+
+      // CSRF defence for the OAuth flow: the state we emitted at
+      // /api/auth/google{,/youtube} must match the one Google bounced back.
+      const expected = req.session.googleLoginState;
+      if (!expected || typeof state !== 'string' || state !== expected) {
+        console.warn('Google OAuth state mismatch', { expected: !!expected, received: !!state });
+        return res.redirect('/?error=Invalid+OAuth+state');
+      }
+      delete req.session.googleLoginState;
 
       // Exchange code for access token
       const tokenData = await getGoogleAccessToken(code as string);
@@ -1450,7 +1501,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(usersTable.id, user.id));
       }
 
-      // Set session
+      // Set session (with regeneration to prevent session fixation).
+      await regenerateSession(req);
       req.session.userId = user.id;
       req.session.isAnonymous = false;
       await saveSession(req);
