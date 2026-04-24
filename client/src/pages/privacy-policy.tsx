@@ -33,15 +33,52 @@ export default function PrivacyPolicy() {
           <h2 className="text-2xl font-semibold mb-4">Information We Collect</h2>
           <h3 className="text-xl font-medium mb-2">Personal Data</h3>
           <p>
-            While using our Service, we may ask you to provide us with certain personally identifiable information that can be used 
+            While using our Service, we may ask you to provide us with certain personally identifiable information that can be used
             to contact or identify you ("Personal Data"). Personally identifiable information may include, but is not limited to:
           </p>
           <ul className="list-disc pl-6 mb-4">
             <li>Email address</li>
             <li>First name and last name</li>
             <li>Cookies and Usage Data</li>
-            <li>Social media profile information (when you connect platforms like LinkedIn)</li>
+            <li>Social media profile information (when you connect platforms like LinkedIn, Google/YouTube)</li>
           </ul>
+
+          <h3 className="text-xl font-medium mb-2">Google API Services User Data</h3>
+          <p>
+            When you choose to connect your Google account (for sign-in and/or YouTube
+            personalization), Content Reworker requests only the scopes strictly required
+            to deliver the feature you opted into:
+          </p>
+          <ul className="list-disc pl-6 mb-4">
+            <li><code>openid</code>, <code>email</code>, <code>profile</code> — to identify you for sign-in.</li>
+            <li><code>https://www.googleapis.com/auth/youtube.readonly</code> — read-only access to the subscriptions and liked-videos playlists on your YouTube account, so we can auto-populate the creators you already follow into your content-ideas feed and use your existing likes as personalization signals.</li>
+          </ul>
+          <p>
+            <strong>How we use this data:</strong> Subscriptions are stored as entries in your
+            private "tracked creators" list so the Service can ingest recent videos from
+            those channels for you to browse. Liked-video identifiers are stored as
+            feedback signals feeding the recommendation ranker; we do not display your
+            liked videos to other users.
+          </p>
+          <p>
+            <strong>How we do <em>not</em> use this data:</strong> We do not sell, rent, or
+            share your Google/YouTube data with any third party. We do not use it to train,
+            generalize, or improve any artificial intelligence or machine-learning model.
+            We do not use it for advertising. Access is limited to the minimum personnel
+            required to operate the Service.
+          </p>
+          <p>
+            <strong>Retention and deletion:</strong> You can revoke our access at any time
+            via your <a className="underline" href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">Google Account security settings</a>{" "}
+            or by removing the Content Reworker integration from within our Service. When
+            you revoke access or delete your account, we delete the cached tracked-creator
+            entries and interaction signals derived from your Google data within 30 days.
+          </p>
+          <p>
+            Content Reworker's use of information received from Google APIs adheres to the{" "}
+            <a className="underline" href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>,
+            including the Limited Use requirements.
+          </p>
 
           <h3 className="text-xl font-medium mb-2">Content Data</h3>
           <p>
