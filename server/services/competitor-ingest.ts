@@ -54,12 +54,16 @@ export async function ingestForAccount(accountId: number): Promise<IngestResult>
   let skipped = 0;
 
   for (const v of fetched) {
+    // Dedup per-user: same viral post can belong to multiple users
+    // who track the same creator. `(tracked_account_id, platform_post_id)`
+    // is the effective unique key.
     const existing = await db
       .select({ id: curatedVirals.id })
       .from(curatedVirals)
       .where(and(
         eq(curatedVirals.platform, v.platform),
         eq(curatedVirals.platformPostId, v.platformPostId),
+        eq(curatedVirals.trackedAccountId, accountId),
       ))
       .limit(1);
 

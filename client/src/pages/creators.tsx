@@ -139,9 +139,15 @@ export default function CreatorsPage() {
       qc.invalidateQueries({ queryKey: ["trending"] });
       if (result.error) {
         toast({ title: result.error, variant: "destructive" });
+      } else if (result.added === 0) {
+        toast({
+          title: "Up to date",
+          description: `${result.skipped} post${result.skipped === 1 ? "" : "s"} already in your feed. Open Ideas to browse them.`,
+        });
       } else {
         toast({
-          title: `Added ${result.added}, skipped ${result.skipped}`,
+          title: `${result.added} new post${result.added === 1 ? "" : "s"} added`,
+          description: "Open Ideas to see them.",
         });
       }
     },

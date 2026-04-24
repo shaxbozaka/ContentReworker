@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { db } from '../db';
-import { trendingContent, curatedVirals } from '../../shared/schema';
+import { trendingContent, curatedVirals, trackedAccounts } from '../../shared/schema';
 import { eq, and, gt, desc, sql, or } from 'drizzle-orm';
 
 // Cache durations
@@ -377,8 +377,9 @@ export async function getCuratedVirals(options: {
   platform?: string;
   category?: string;
   limit?: number;
+  userId?: number;
 }) {
-  const { platform, category, limit = 20 } = options;
+  const { platform, category, limit = 20, userId } = options;
 
   const conditions = [eq(curatedVirals.isActive, true)];
 
@@ -388,6 +389,30 @@ export async function getCuratedVirals(options: {
 
   if (category && category !== 'all') {
     conditions.push(eq(curatedVirals.category, category));
+  }
+
+  // If this user has tracked accounts, surface their ingested posts first.
+  // Order: user's tracked posts (newest first) → everything else (by views).
+  if (userId) {
+    const userAccountIds = await db
+      .select({ id: trackedAccounts.id })
+      .from(trackedAccounts)
+      .where(eq(trackedAccounts.userId, userId));
+
+    if (userAccountIds.length > 0) {
+      const ids = userAccountIds.map((r) => r.id);
+      const userSource = sql`COALESCE(${curatedVirals.trackedAccountId} IN (${sql.join(ids.map((i) => sql`${i}`), sql`, `)}), false)`;
+      const results = await db.select()
+        .from(curatedVirals)
+        .where(and(...conditions))
+        .orderBy(
+          desc(userSource),
+          sql`${curatedVirals.publishedAt} DESC NULLS LAST`,
+          desc(curatedVirals.views),
+        )
+        .limit(limit);
+      return results;
+    }
   }
 
   const results = await db.select()

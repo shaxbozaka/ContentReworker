@@ -1614,15 +1614,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get curated viral examples
+  // Get curated viral examples — prefers items from the caller's tracked accounts
   app.get('/api/trending/curated', async (req, res) => {
     try {
-      const { platform, category, limit = '10' } = req.query;
+      const { platform, category, limit = '20' } = req.query;
+      const userId = req.session.userId;
 
       const virals = await trendingService.getCuratedVirals({
         platform: platform as string,
         category: category as string,
         limit: parseInt(limit as string),
+        userId,
       });
 
       return res.status(200).json({ virals });
