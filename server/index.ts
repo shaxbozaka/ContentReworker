@@ -2,7 +2,9 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import path from "path";
+import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { startScheduler } from "./services/scheduler";
 import { startPipelineScheduler } from "./services/pipeline-scheduler";
@@ -50,16 +52,25 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: false }));
 
-// Session store setup
+// Session store: Postgres-backed so sessions survive container restarts.
+// Fall back to in-memory only when DATABASE_URL isn't set (local scripts/tests).
+const PgSession = connectPgSimple(session);
 const MemoryStoreSession = MemoryStore(session);
+
+const sessionStore = process.env.DATABASE_URL
+  ? new PgSession({
+      pool,
+      tableName: 'user_sessions',
+      createTableIfMissing: true,
+      pruneSessionInterval: 60 * 60, // hourly prune of expired rows (seconds)
+    })
+  : new MemoryStoreSession({ checkPeriod: 86400000 });
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'content-reworker-dev-secret',
   resave: false,
   saveUninitialized: false,
-  store: new MemoryStoreSession({
-    checkPeriod: 86400000 // prune expired entries every 24h
-  }),
+  store: sessionStore,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
