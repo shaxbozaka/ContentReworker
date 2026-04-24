@@ -506,6 +506,11 @@ export const trendingContent = pgTable("trending_content", {
   shares: integer("shares"),
   score: integer("score"), // Platform-specific score (karma, points, etc.)
 
+  // Media
+  mediaType: text("media_type").default("text"), // 'text' | 'image' | 'video' | 'carousel'
+  videoUrl: text("video_url"),
+  duration: integer("duration"), // seconds, for videos
+
   // Categorization
   category: text("category").default("general"),
   tags: json("tags").$type<string[]>(),
@@ -521,17 +526,25 @@ export const trendingContent = pgTable("trending_content", {
   isActive: boolean("is_active").default(true),
 });
 
-// Curated viral examples (manually added high-performers)
+// Curated viral examples — live ingest keyed by (platform, platformPostId) from
+// scrapers (YouTube API server-side, open-source browser extension for LinkedIn/IG/TikTok).
+// trackedAccountId null → legacy seed (Phase 3 will delete).
 export const curatedVirals = pgTable("curated_virals", {
   id: serial("id").primaryKey(),
 
   // Content
-  platform: text("platform").notNull(), // linkedin, twitter, instagram, etc.
+  platform: text("platform").notNull(), // linkedin, twitter, instagram, tiktok, youtube
   authorName: text("author_name").notNull(),
   authorHandle: text("author_handle"),
   authorFollowers: integer("author_followers"),
   content: text("content").notNull(),
   hook: text("hook").notNull(),
+
+  // Media
+  mediaType: text("media_type").default("text").notNull(), // 'text' | 'image' | 'video' | 'carousel'
+  videoUrl: text("video_url"),
+  thumbnailUrl: text("thumbnail_url"),
+  duration: integer("duration"), // seconds, for videos
 
   // Verified metrics
   views: integer("views"),
@@ -541,21 +554,55 @@ export const curatedVirals = pgTable("curated_virals", {
 
   // Analysis
   category: text("category").notNull(),
-  whyItWorks: text("why_it_works").notNull(),
+  whyItWorks: text("why_it_works"),
   hookPattern: text("hook_pattern"), // "contrarian", "story", "listicle", etc.
 
-  // Source verification
+  // Source
   sourceUrl: text("source_url"),
-  screenshotUrl: text("screenshot_url"), // Proof of metrics
+  platformPostId: text("platform_post_id"), // per-platform permalink id; (platform,platformPostId) unique
+  screenshotUrl: text("screenshot_url"),
   verifiedAt: timestamp("verified_at"),
+  publishedAt: timestamp("published_at"),
 
-  // Metadata
+  // Ownership / attribution
   addedBy: integer("added_by").references(() => users.id),
+  trackedAccountId: integer("tracked_account_id"), // FK added below via relation; nullable for legacy seeds
   createdAt: timestamp("created_at").defaultNow().notNull(),
   isActive: boolean("is_active").default(true),
+});
+
+// Per-user list of competitor handles we ingest posts from.
+export const trackedAccounts = pgTable("tracked_accounts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  platform: text("platform").notNull(), // linkedin, instagram, tiktok, youtube, twitter
+  handle: text("handle").notNull(), // e.g. "justinwelsh", or YouTube channel id "UC..."
+  displayName: text("display_name"),
+  profileUrl: text("profile_url"),
+  lastFetchedAt: timestamp("last_fetched_at"),
+  lastPostCount: integer("last_post_count").default(0),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Per-user niche/topic preferences that feed the ranking and keyword queries.
+export const userContentPreferences = pgTable("user_content_preferences", {
+  userId: integer("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  niche: text("niche"),
+  targetAudience: text("target_audience"),
+  contentGoal: text("content_goal"), // hooks | storytelling | short-form-video | carousels
+  topics: json("topics").$type<string[]>().default([]),
+  languages: json("languages").$type<string[]>().default(["en"]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export type TrendingContent = typeof trendingContent.$inferSelect;
 export type InsertTrendingContent = typeof trendingContent.$inferInsert;
 export type CuratedViral = typeof curatedVirals.$inferSelect;
 export type InsertCuratedViral = typeof curatedVirals.$inferInsert;
+export type TrackedAccount = typeof trackedAccounts.$inferSelect;
+export type InsertTrackedAccount = typeof trackedAccounts.$inferInsert;
+export type UserContentPreferences = typeof userContentPreferences.$inferSelect;
+export type InsertUserContentPreferences = typeof userContentPreferences.$inferInsert;

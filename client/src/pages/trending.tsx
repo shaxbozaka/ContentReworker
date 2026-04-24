@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import Footer from "@/components/Footer";
@@ -16,6 +16,11 @@ import {
   Eye,
   Heart,
   MessageCircle,
+  Play,
+  Youtube,
+  Instagram,
+  Twitter,
+  Music2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,6 +39,35 @@ interface TrendingItem {
   publishedAt: string;
   whyItWorks?: string;
   hookPattern?: string;
+  mediaType?: "text" | "image" | "video" | "carousel";
+  videoUrl?: string | null;
+  thumbnailUrl?: string | null;
+  duration?: number | null;
+  platform?: string;
+}
+
+function formatDuration(seconds: number | null | undefined): string {
+  if (!seconds || seconds <= 0) return "";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function getPlatformIcon(platform?: string) {
+  switch (platform) {
+    case "youtube":
+      return Youtube;
+    case "linkedin":
+      return Linkedin;
+    case "instagram":
+      return Instagram;
+    case "tiktok":
+      return Music2;
+    case "twitter":
+      return Twitter;
+    default:
+      return Linkedin;
+  }
 }
 
 function formatNumber(num: number | null): string {
@@ -69,9 +103,14 @@ export default function TrendingPage() {
           likes: v.likes,
           comments: v.comments,
           category: v.category,
-          publishedAt: v.createdAt,
+          publishedAt: v.publishedAt || v.createdAt,
           whyItWorks: v.whyItWorks,
           hookPattern: v.hookPattern,
+          mediaType: v.mediaType || "text",
+          videoUrl: v.videoUrl,
+          thumbnailUrl: v.thumbnailUrl,
+          duration: v.duration,
+          platform: v.platform,
         }));
       }
       const res = await fetch("/api/trending");
@@ -174,18 +213,22 @@ export default function TrendingPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="py-20 text-center border border-white/10 rounded-xl">
-            <p className="text-white/30 mb-4">No content found</p>
-            <Button
-              onClick={() => refreshMutation.mutate()}
-              disabled={refreshMutation.isPending}
-              className="bg-white text-black hover:bg-white/90"
-            >
-              Fetch Content
-            </Button>
+            <p className="text-white/50 mb-2 text-lg">No content yet</p>
+            <p className="text-white/30 mb-6 text-sm max-w-md mx-auto">
+              Add a few creators or competitors you want to pull viral posts from. We'll ingest their recent content into this feed.
+            </p>
+            <Link href="/creators">
+              <Button className="bg-white text-black hover:bg-white/90">
+                Pick creators to follow
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
           </div>
         ) : (
           <div className="space-y-4">
-            {items.map((item) => (
+            {items.map((item) => {
+              const PlatformIcon = getPlatformIcon(item.platform || item.source);
+              return (
               <div
                 key={item.id}
                 className="bg-white/[0.03] border border-white/10 rounded-xl p-5 hover:bg-white/[0.05] transition-all"
@@ -193,7 +236,7 @@ export default function TrendingPage() {
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex items-center gap-2">
-                    <Linkedin className="w-4 h-4 text-white/40" />
+                    <PlatformIcon className="w-4 h-4 text-white/40" />
                     <span className="text-white/50 text-sm">{item.author || "Unknown"}</span>
                   </div>
                   {item.hookPattern && (
@@ -202,6 +245,33 @@ export default function TrendingPage() {
                     </span>
                   )}
                 </div>
+
+                {/* Video embed or thumbnail for video content */}
+                {item.mediaType === "video" && item.videoUrl && (
+                  <div className="relative mb-4 rounded-lg overflow-hidden bg-black aspect-video">
+                    {/youtube\.com\/embed/.test(item.videoUrl) ? (
+                      <iframe
+                        src={item.videoUrl}
+                        className="w-full h-full"
+                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video
+                        src={item.videoUrl}
+                        poster={item.thumbnailUrl || undefined}
+                        controls
+                        preload="metadata"
+                        className="w-full h-full"
+                      />
+                    )}
+                    {item.duration ? (
+                      <span className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded">
+                        {formatDuration(item.duration)}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
 
                 {/* Content */}
                 <p className="text-white/80 text-[15px] leading-relaxed mb-4 whitespace-pre-wrap">
@@ -271,7 +341,8 @@ export default function TrendingPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

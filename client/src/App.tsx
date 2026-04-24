@@ -13,6 +13,7 @@ import AccountsPage from "@/pages/accounts";
 import HistoryPage from "@/pages/history";
 import PricingPage from "@/pages/pricing";
 import GeneratePage from "@/pages/generate";
+import CreatorsPage from "@/pages/creators";
 import SchedulePage from "@/pages/schedule";
 import PipelinesPage from "@/pages/pipelines";
 import BlogToTwitterPage from "@/pages/seo/blog-to-twitter";
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/history" component={HistoryPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/generate" component={GeneratePage} />
+      <Route path="/creators" component={CreatorsPage} />
       <Route path="/schedule" component={SchedulePage} />
       <Route path="/pipelines" component={PipelinesPage} />
       <Route path="/blog-to-twitter" component={BlogToTwitterPage} />

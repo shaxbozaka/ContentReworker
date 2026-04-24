@@ -2,7 +2,10 @@ import type { Express, Request, Response, NextFunction } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType, type AIProvider, insertUserSchema } from "@shared/schema";
+import { transformationRequestSchema, transformationResponseSchema, type TransformationRequest, type PlatformType, type AIProvider, insertUserSchema, trackedAccounts, userContentPreferences } from "@shared/schema";
+import { db } from "./db";
+import { and, desc, eq } from "drizzle-orm";
+import { ingestForAccount } from "./services/competitor-ingest";
 import * as openaiService from "./services/openai";
 import * as anthropicService from "./services/anthropic";
 import * as geminiService from "./services/gemini";
@@ -1661,6 +1664,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error seeding curated virals:', error);
       return res.status(500).json({ message: 'Failed to seed curated virals' });
     }
+  });
+
+  // ============ TRACKED ACCOUNTS (competitor handles per user) ============
+
+  const VALID_PLATFORMS = ['linkedin', 'instagram', 'tiktok', 'youtube', 'twitter'] as const;
+
+  function normalizeHandle(platform: string, raw: string): string {
+    const trimmed = raw.trim();
+    try {
+      const url = new URL(trimmed);
+      const path = url.pathname.replace(/\/$/, '');
+      if (platform === 'youtube') {
+        const chan = path.match(/\/channel\/([^/]+)/);
+        if (chan) return chan[1];
+        const handle = path.match(/\/@([^/]+)/);
+        if (handle) return handle[1];
+        const custom = path.match(/\/c\/([^/]+)/);
+        if (custom) return custom[1];
+        const user = path.match(/\/user\/([^/]+)/);
+        if (user) return user[1];
+      } else if (platform === 'linkedin') {
+        const m = path.match(/\/in\/([^/]+)/) || path.match(/\/company\/([^/]+)/);
+        if (m) return m[1];
+      } else {
+        const m = path.match(/\/@?([^/]+)/);
+        if (m) return m[1];
+      }
+    } catch {
+      // not a URL; fall through
+    }
+    return trimmed.replace(/^@/, '');
+  }
+
+  app.get('/api/tracked-accounts', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const accounts = await db
+        .select()
+        .from(trackedAccounts)
+        .where(eq(trackedAccounts.userId, userId))
+        .orderBy(desc(trackedAccounts.createdAt));
+      return res.json({ accounts });
+    } catch (err: any) {
+      console.error('GET /api/tracked-accounts:', err);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post('/api/tracked-accounts', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const { platform, handle, displayName, profileUrl } = req.body ?? {};
+
+      if (!platform || !VALID_PLATFORMS.includes(platform)) {
+        return res.status(400).json({
+          message: `platform must be one of: ${VALID_PLATFORMS.join(', ')}`,
+        });
+      }
+      if (!handle || typeof handle !== 'string' || !handle.trim()) {
+        return res.status(400).json({ message: 'handle is required' });
+      }
+
+      const normalized = normalizeHandle(platform, handle);
+
+      const [existing] = await db
+        .select()
+        .from(trackedAccounts)
+        .where(and(
+          eq(trackedAccounts.userId, userId),
+          eq(trackedAccounts.platform, platform),
+          eq(trackedAccounts.handle, normalized),
+        ));
+
+      if (existing) {
+        return res.status(409).json({ message: 'already tracking this account', account: existing });
+      }
+
+      const [created] = await db
+        .insert(trackedAccounts)
+        .values({
+          userId,
+          platform,
+          handle: normalized,
+          displayName: displayName || null,
+          profileUrl: profileUrl || null,
+        })
+        .returning();
+
+      return res.status(201).json({ account: created });
+    } catch (err: any) {
+      console.error('POST /api/tracked-accounts:', err);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.delete('/api/tracked-accounts/:id', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const id = parseInt(req.params.id, 10);
+      if (!Number.isFinite(id)) return res.status(400).json({ message: 'invalid id' });
+
+      const deleted = await db
+        .delete(trackedAccounts)
+        .where(and(eq(trackedAccounts.id, id), eq(trackedAccounts.userId, userId)))
+        .returning();
+
+      if (deleted.length === 0) return res.status(404).json({ message: 'not found' });
+      return res.json({ success: true });
+    } catch (err: any) {
+      console.error('DELETE /api/tracked-accounts:', err);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post('/api/tracked-accounts/:id/refresh', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const id = parseInt(req.params.id, 10);
+      if (!Number.isFinite(id)) return res.status(400).json({ message: 'invalid id' });
+
+      const [account] = await db
+        .select()
+        .from(trackedAccounts)
+        .where(and(eq(trackedAccounts.id, id), eq(trackedAccounts.userId, userId)));
+
+      if (!account) return res.status(404).json({ message: 'not found' });
+
+      const result = await ingestForAccount(id);
+      return res.json(result);
+    } catch (err: any) {
+      console.error('POST /api/tracked-accounts/:id/refresh:', err);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ============ USER CONTENT PREFERENCES ============
+
+  app.get('/api/preferences', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const [prefs] = await db
+        .select()
+        .from(userContentPreferences)
+        .where(eq(userContentPreferences.userId, userId));
+      return res.json({ preferences: prefs ?? null });
+    } catch (err: any) {
+      console.error('GET /api/preferences:', err);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.put('/api/preferences', async (req, res) => {
+    try {
+      const userId = await ensureUserId(req);
+      const { niche, targetAudience, contentGoal, topics, languages } = req.body ?? {};
+
+      const [existing] = await db
+        .select()
+        .from(userContentPreferences)
+        .where(eq(userContentPreferences.userId, userId));
+
+      if (existing) {
+        const [updated] = await db
+          .update(userContentPreferences)
+          .set({
+            niche: niche ?? existing.niche,
+            targetAudience: targetAudience ?? existing.targetAudience,
+            contentGoal: contentGoal ?? existing.contentGoal,
+            topics: topics ?? existing.topics,
+            languages: languages ?? existing.languages,
+            updatedAt: new Date(),
+          })
+          .where(eq(userContentPreferences.userId, userId))
+          .returning();
+        return res.json({ preferences: updated });
+      }
+
+      const [created] = await db
+        .insert(userContentPreferences)
+        .values({
+          userId,
+          niche: niche ?? null,
+          targetAudience: targetAudience ?? null,
+          contentGoal: contentGoal ?? null,
+          topics: topics ?? [],
+          languages: languages ?? ['en'],
+        })
+        .returning();
+      return res.json({ preferences: created });
+    } catch (err: any) {
+      console.error('PUT /api/preferences:', err);
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ============ VIRAL INGEST (Phase 2 — browser extension target) ============
+
+  app.post('/api/viral/ingest', async (req, res) => {
+    // TODO Phase 2: extension-token auth middleware, batch upsert keyed on (platform, platformPostId)
+    return res.status(501).json({
+      message: 'browser extension ingest endpoint — implementation pending (Phase 2)',
+    });
   });
 
   // ============ BILLING / PADDLE ROUTES ============
