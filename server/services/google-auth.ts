@@ -1,4 +1,5 @@
 import axios from 'axios';
+import crypto from 'crypto';
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -48,7 +49,7 @@ export function getGoogleAuthURL(options: { includeYouTube?: boolean; state?: st
     scope: scopes.join(' '),
     access_type: 'offline',
     prompt: 'consent',
-    state: options.state ?? Math.random().toString(36).substring(2, 15),
+    state: options.state ?? crypto.randomBytes(16).toString('hex'),
   });
 
   return `${baseUrl}?${params.toString()}`;

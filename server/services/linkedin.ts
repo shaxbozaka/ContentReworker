@@ -1,4 +1,5 @@
 import axios from 'axios';
+import crypto from 'crypto';
 import { storage } from '../storage';
 
 interface LinkedInTokenResponse {
@@ -75,7 +76,7 @@ export function getLinkedInAuthURL(state?: string, redirectType: 'connect' | 'us
     client_id: LINKEDIN_CLIENT_ID as string,
     redirect_uri: getLinkedInRedirectUri(redirectType),
     scope: LINKEDIN_SCOPES,
-    state: state || Math.random().toString(36).substring(2, 15),
+    state: state || crypto.randomBytes(16).toString('hex'),
   });
 
   // LinkedIn requires privacy policy and terms of service URLs for API usage
@@ -97,7 +98,7 @@ export function getLinkedInLoginURL(state?: string): string {
     client_id: LINKEDIN_CLIENT_ID as string,
     redirect_uri: getLinkedInRedirectUri('login'),
     scope: LINKEDIN_LOGIN_SCOPES,
-    state: state || ('login_' + Math.random().toString(36).substring(2, 15)),
+    state: state || ('login_' + crypto.randomBytes(16).toString('hex')),
   });
 
   return `${baseUrl}?${params.toString()}`;

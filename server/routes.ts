@@ -38,6 +38,14 @@ import crypto from "crypto";
 const SUPPORTED_SCHEDULED_PLATFORM = 'linkedin';
 const SUPPORTED_PIPELINE_PLATFORM = 'LinkedIn';
 
+// CSPRNG for OAuth state tokens (and similar CSRF defences). Math.random
+// is not cryptographically secure; an attacker who observes one token
+// could reduce entropy enough to predict future ones. 16 bytes of CSPRNG
+// entropy → 128 bits → unforgeable.
+function genState(prefix: string = ''): string {
+  return `${prefix}${prefix ? '_' : ''}${crypto.randomBytes(16).toString('hex')}`;
+}
+
 // Second line of defence against cookie-rotating cost abuse on the paid LLM
 // endpoint. Per-user (FREE_DAILY_LIMIT=3) caps the legitimate case; this
 // caps the spammer who churns anon users from one IP.
@@ -644,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const state = `connect_${Math.random().toString(36).slice(2, 15)}`;
+    const state = genState('connect');
     req.session.linkedinConnectState = state;
     await saveSession(req);
 
@@ -1414,7 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const state = `g_${Math.random().toString(36).slice(2, 15)}${Math.random().toString(36).slice(2, 15)}`;
+      const state = genState('g');
       req.session.googleLoginState = state;
       req.session.save((err) => {
         if (err) {
@@ -1440,7 +1448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           missingCredentials: true,
         });
       }
-      const state = `yt_${Math.random().toString(36).slice(2, 15)}${Math.random().toString(36).slice(2, 15)}`;
+      const state = genState('yt');
       req.session.googleLoginState = state;
       req.session.save((err) => {
         if (err) {
@@ -1567,7 +1575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const state = `login_${Math.random().toString(36).slice(2, 15)}`;
+      const state = genState('login');
       req.session.linkedinLoginState = state;
       req.session.save((error) => {
         if (error) {
