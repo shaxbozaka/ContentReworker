@@ -6,6 +6,7 @@ import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
+import { TieredSessionStore } from "./services/tiered-session-store";
 import { startScheduler } from "./services/scheduler";
 import { startPipelineScheduler } from "./services/pipeline-scheduler";
 
@@ -52,18 +53,23 @@ app.use((req, res, next) => {
 });
 app.use(express.urlencoded({ extended: false }));
 
-// Session store: Postgres-backed so sessions survive container restarts.
-// Fall back to in-memory only when DATABASE_URL isn't set (local scripts/tests).
+// Session store: Postgres for durability + in-memory cache for speed.
+// Sessions survive container restarts (Pg), but hot reads don't hit the DB
+// for up to TIERED_SESSION_TTL_MS (default 5 min). Falls back to pure
+// in-memory when DATABASE_URL isn't set (local scripts/tests).
 const PgSession = connectPgSimple(session);
 const MemoryStoreSession = MemoryStore(session);
 
 const sessionStore = process.env.DATABASE_URL
-  ? new PgSession({
-      pool,
-      tableName: 'user_sessions',
-      createTableIfMissing: true,
-      pruneSessionInterval: 60 * 60, // hourly prune of expired rows (seconds)
-    })
+  ? new TieredSessionStore(
+      new PgSession({
+        pool,
+        tableName: 'user_sessions',
+        createTableIfMissing: true,
+        pruneSessionInterval: 60 * 60, // hourly prune of expired rows (seconds)
+      }),
+      parseInt(process.env.TIERED_SESSION_TTL_MS || `${5 * 60 * 1000}`),
+    )
   : new MemoryStoreSession({ checkPeriod: 86400000 });
 
 app.use(session({
