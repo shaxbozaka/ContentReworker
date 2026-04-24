@@ -42,11 +42,34 @@ const SUPPORTED_PIPELINE_PLATFORM = 'LinkedIn';
 // endpoint. Per-user (FREE_DAILY_LIMIT=3) caps the legitimate case; this
 // caps the spammer who churns anon users from one IP.
 const repurposeIpLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20,                   // 20 repurposes per IP per hour
+  windowMs: 60 * 60 * 1000,
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests from this IP. Please try again later.' },
+});
+
+// Credential-stuffing / brute-force defence on the password login endpoint.
+// 10 attempts per IP per 15 minutes is loose enough for legitimate typos +
+// users behind NAT, tight enough that a 6-char random password (36^6 space)
+// takes ~300 years to brute-force per IP. Successful logins skip the counter
+// so a real user isn't locked out after a few legitimate sign-ins.
+const loginIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { message: 'Too many login attempts. Try again in a few minutes.' },
+});
+
+// Account-creation spam defence. 5 new accounts per IP per hour.
+const registerIpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many accounts from this IP. Try again later.' },
 });
 
 // Helper to get or create user ID from session
@@ -844,7 +867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Register a new user
-  app.post('/api/users/register', async (req, res) => {
+  app.post('/api/users/register', registerIpLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
       
@@ -886,7 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Login
-  app.post('/api/users/login', async (req, res) => {
+  app.post('/api/users/login', loginIpLimiter, async (req, res) => {
     try {
       const { username, password } = req.body;
       
