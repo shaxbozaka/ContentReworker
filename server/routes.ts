@@ -80,6 +80,19 @@ const registerIpLimiter = rateLimit({
   message: { message: 'Too many accounts from this IP. Try again later.' },
 });
 
+// Cost-inflation defence for endpoints that hit expensive external APIs
+// (YouTube Data API quota, HN/Reddit scrape, YT subscription imports).
+// Looser than login but tight relative to the cost — 30 calls/IP/hour means
+// a malicious authenticated user can still refresh legitimately several times
+// per hour while not draining the 10k-unit/day YouTube quota.
+const expensiveApiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many refresh requests. Try again in a few minutes.' },
+});
+
 // Helper to get or create user ID from session
 async function ensureUserId(req: Request): Promise<number> {
   if (req.session.userId) {
@@ -1789,7 +1802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Refresh trending content (trigger fetch from sources)
-  app.post('/api/trending/refresh', async (req, res) => {
+  app.post('/api/trending/refresh', expensiveApiLimiter, async (req, res) => {
     try {
       console.log('Manual trending refresh triggered');
       const results = await trendingService.refreshAllTrending();
@@ -1801,7 +1814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seed curated viral posts (LinkedIn, Twitter, Instagram examples)
-  app.post('/api/trending/seed-curated', async (req, res) => {
+  app.post('/api/trending/seed-curated', expensiveApiLimiter, async (req, res) => {
     try {
       const count = await trendingService.seedCuratedVirals();
       return res.status(200).json({ success: true, count });
@@ -1923,7 +1936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/tracked-accounts/:id/refresh', async (req, res) => {
+  app.post('/api/tracked-accounts/:id/refresh', expensiveApiLimiter, async (req, res) => {
     try {
       const userId = await ensureUserId(req);
       const id = parseInt(req.params.id, 10);
@@ -2062,7 +2075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============ YOUTUBE MANUAL IMPORT ============
 
-  app.post('/api/integrations/youtube/import', async (req, res) => {
+  app.post('/api/integrations/youtube/import', expensiveApiLimiter, async (req, res) => {
     try {
       const userId = await ensureUserId(req);
       const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
