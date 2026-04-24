@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Linkedin, PenLine } from "lucide-react";
+import { Github, Linkedin, PenLine } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -19,15 +19,38 @@ export default function Footer() {
             <p className="max-w-sm text-sm leading-6 text-slate-600">
               Turn long-form content into LinkedIn posts with hook variations, publishing controls, and creator workflow tools.
             </p>
-            <a
-              href="https://linkedin.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-5 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-[rgb(var(--color-linkedin))]"
-              aria-label="LinkedIn"
-            >
-              <Linkedin className="h-4 w-4" />
-            </a>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">
+              <a
+                href="https://github.com/shaxbozaka/ContentReworker"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950 hover:decoration-slate-950"
+              >
+                <Github className="h-3.5 w-3.5" />
+                Open-source on GitHub
+              </a>
+              <span className="text-slate-400"> — read exactly what we do with your data.</span>
+            </p>
+            <div className="mt-5 flex items-center gap-2">
+              <a
+                href="https://github.com/shaxbozaka/ContentReworker"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-slate-950"
+                aria-label="GitHub repository"
+              >
+                <Github className="h-4 w-4" />
+              </a>
+              <a
+                href="https://linkedin.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:text-[rgb(var(--color-linkedin))]"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="h-4 w-4" />
+              </a>
+            </div>
           </div>
 
           <div>
@@ -84,7 +107,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 flex flex-col gap-3 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Content Reworker. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Content Reworker — MIT licensed.</p>
           <p className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             Systems operational
