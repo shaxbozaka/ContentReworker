@@ -2,9 +2,46 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <!-- maximum-scale removed: blocking pinch-zoom is an a11y issue and Lighthouse penalizes it. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="theme-color" content="#f6f8fc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Content Reworker" />
+    <meta name="application-name" content="Content Reworker" />
+    <meta name="author" content="Content Reworker" />
+
     <link rel="icon" type="image/png" href="/images/logo.png" />
     <link rel="apple-touch-icon" href="/images/logo.png" />
+
+    <!-- Avatar host warm-up. /api/auth/me returns a googleusercontent URL for
+         logged-in users; preconnecting in parallel with HTML parse means the
+         TLS handshake is already paid by the time React fires the request. -->
+    <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin />
+    <link rel="dns-prefetch" href="https://lh3.googleusercontent.com" />
+
+    <!-- First-paint critical CSS. Inlined so the browser paints the page
+         background and base typography before the main stylesheet downloads —
+         eliminates the white flash on slow connections. Stays under 1KB. -->
+    <style>
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        font-feature-settings: 'kern';
+        background: hsl(216, 33%, 97%);
+        color: hsl(222, 47%, 11%);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+      #root { min-height: 100vh; }
+      @media (prefers-color-scheme: dark) {
+        body { background: hsl(240, 10%, 4%); color: hsl(0, 0%, 98%); }
+      }
+    </style>
+
     <!-- SEO_START -->
     <title>Content Reworker | AI LinkedIn Post Generator</title>
     <meta name="description" content="Turn articles, YouTube transcripts, and podcasts into LinkedIn-ready posts with AI hooks, editing tools, scheduling, and creator-inspired ideas." />
@@ -16,8 +53,11 @@
     <meta property="og:description" content="Turn articles, YouTube transcripts, and podcasts into LinkedIn-ready posts with AI hooks, editing tools, scheduling, and creator-inspired ideas." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://aicontentrepurposer.com" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:image" content="https://aicontentrepurposer.com/images/logo.png" />
     <meta property="og:image:alt" content="Content Reworker logo" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
     <meta property="og:site_name" content="Content Reworker" />
 
     <meta name="twitter:card" content="summary_large_image" />
@@ -25,8 +65,8 @@
     <meta name="twitter:description" content="Turn articles, YouTube transcripts, and podcasts into LinkedIn-ready posts with AI hooks, editing tools, scheduling, and creator-inspired ideas." />
     <meta name="twitter:image" content="https://aicontentrepurposer.com/images/logo.png" />
     <meta name="twitter:image:alt" content="Content Reworker logo" />
-    
-    <script type="application/ld+json" data-managed-seo="true">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://aicontentrepurposer.com/#website","name":"Content Reworker","url":"https://aicontentrepurposer.com"},{"@type":"SoftwareApplication","@id":"https://aicontentrepurposer.com/#software","name":"Content Reworker","url":"https://aicontentrepurposer.com","description":"Turn articles, YouTube transcripts, and podcasts into LinkedIn-ready posts with AI hooks, editing tools, scheduling, and creator-inspired ideas.","applicationCategory":"BusinessApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"featureList":["Transform long-form content into LinkedIn posts","Generate three hook variations per post","Create posts for LinkedIn, X, Threads, Instagram, and Email","Publish or schedule LinkedIn posts","Track creators for personalized content ideas"]},{"@type":"WebPage","@id":"https://aicontentrepurposer.com#webpage","url":"https://aicontentrepurposer.com","name":"Content Reworker | AI LinkedIn Post Generator","description":"Turn articles, YouTube transcripts, and podcasts into LinkedIn-ready posts with AI hooks, editing tools, scheduling, and creator-inspired ideas.","isPartOf":{"@id":"https://aicontentrepurposer.com/#website"},"about":{"@id":"https://aicontentrepurposer.com/#software"}}]}</script>
+
+    <script type="application/ld+json" data-managed-seo="true">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://aicontentrepurposer.com/#organization","name":"Content Reworker","url":"https://aicontentrepurposer.com","logo":{"@type":"ImageObject","url":"https://aicontentrepurposer.com/images/logo.png","width":512,"height":512}},{"@type":"WebSite","@id":"https://aicontentrepurposer.com/#website","name":"Content Reworker","url":"https://aicontentrepurposer.com","publisher":{"@id":"https://aicontentrepurposer.com/#organization"}},{"@type":"SoftwareApplication","@id":"https://aicontentrepurposer.com/#software","name":"Content Reworker","url":"https://aicontentrepurposer.com","description":"Turn articles, YouTube transcripts, and podcasts into LinkedIn-ready posts with AI hooks, editing tools, scheduling, and creator-inspired ideas.","applicationCategory":"BusinessApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"featureList":["Transform long-form content into LinkedIn posts","Generate three hook variations per post","Create posts for LinkedIn, X, Threads, Instagram, and Email","Publish or schedule LinkedIn posts","Track creators for personalized content ideas"],"publisher":{"@id":"https://aicontentrepurposer.com/#organization"}},{"@type":"WebPage","@id":"https://aicontentrepurposer.com#webpage","url":"https://aicontentrepurposer.com","name":"Content Reworker | AI LinkedIn Post Generator","description":"Turn articles, YouTube transcripts, and podcasts into LinkedIn-ready posts with AI hooks, editing tools, scheduling, and creator-inspired ideas.","isPartOf":{"@id":"https://aicontentrepurposer.com/#website"},"about":{"@id":"https://aicontentrepurposer.com/#software"}}]}</script>
     <!-- SEO_END -->
 
     <!-- Umami Analytics (self-hosted, privacy-friendly) -->

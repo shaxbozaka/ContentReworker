@@ -48,7 +48,7 @@ const serveStatic = (app: express.Application) => {
   const indexTemplate = fs.readFileSync(indexPath, "utf-8");
 
   app.get("*", (req, res) => {
-    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     res.status(200).type("html").send(injectSeoHead(indexTemplate, req.originalUrl));
   });
 };

@@ -237,10 +237,23 @@ export function buildStructuredData(page: SeoPage) {
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        logo: {
+          "@type": "ImageObject",
+          url: DEFAULT_SOCIAL_IMAGE,
+          width: 512,
+          height: 512,
+        },
+      },
+      {
         "@type": "WebSite",
         "@id": `${SITE_URL}/#website`,
         name: SITE_NAME,
         url: SITE_URL,
+        publisher: { "@id": `${SITE_URL}/#organization` },
       },
       {
         "@type": "SoftwareApplication",
@@ -256,6 +269,7 @@ export function buildStructuredData(page: SeoPage) {
           priceCurrency: "USD",
         },
         featureList: page.featureList || defaultFeatureList,
+        publisher: { "@id": `${SITE_URL}/#organization` },
       },
       {
         "@type": "WebPage",
@@ -305,8 +319,11 @@ ${keywordMeta}    <meta name="robots" content="${robots}" />
     <meta property="og:description" content="${escapeHtml(page.description)}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${url}" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:image" content="${DEFAULT_SOCIAL_IMAGE}" />
     <meta property="og:image:alt" content="${SITE_NAME} logo" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
     <meta property="og:site_name" content="${SITE_NAME}" />
 
     <meta name="twitter:card" content="summary_large_image" />
