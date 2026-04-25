@@ -1,0 +1,57 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel any in-flight run when a newer push lands. Two pushes in quick
+# succession should result in one deploy of the latest commit, not two
+# sequential deploys.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install (offline-first, cached)
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run check
+
+  deploy:
+    name: deploy
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Run deploy command on liza
+        env:
+          SSH_KEY: ${{ secrets.LIZA_SSH_KEY }}
+          SSH_HOST: ${{ secrets.LIZA_HOST }}
+          SSH_PORT: ${{ secrets.LIZA_PORT }}
+          SSH_USER: ${{ secrets.LIZA_USER }}
+          SSH_HOST_KEY: ${{ secrets.LIZA_HOST_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_HOST_KEY" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          # The deploy key on liza is locked to /root/deploy-content-reworker.sh
+          # via authorized_keys command="..." restriction, so SSH ignores any
+          # command we send and runs the script instead.
+          ssh -i ~/.ssh/id_ed25519 -p "$SSH_PORT" -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$SSH_HOST"
