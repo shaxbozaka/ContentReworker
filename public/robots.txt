@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /linkedin-api-tester
 
 # Sitemap location
 Sitemap: https://aicontentrepurposer.com/sitemap.xml

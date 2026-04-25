@@ -4,12 +4,14 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
 import helmet from "helmet";
+import fs from "fs";
 import path from "path";
 import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { TieredSessionStore } from "./services/tiered-session-store";
 import { startScheduler } from "./services/scheduler";
 import { startPipelineScheduler } from "./services/pipeline-scheduler";
+import { injectSeoHead } from "@shared/seo";
 
 // Extend express-session types
 declare module "express-session" {
@@ -30,11 +32,19 @@ const log = (message: string) => {
 
 // Simple static file server for production
 const serveStatic = (app: express.Application) => {
-  app.use(express.static(path.join(process.cwd(), "dist/public")));
+  const distPath = path.join(process.cwd(), "dist/public");
+  const indexPath = path.join(distPath, "index.html");
+
+  app.use(express.static(distPath));
   
   // Catch-all handler for SPA
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(process.cwd(), "dist/public/index.html"));
+  app.get("*", async (req, res, next) => {
+    try {
+      const template = await fs.promises.readFile(indexPath, "utf-8");
+      res.status(200).type("html").send(injectSeoHead(template, req.originalUrl));
+    } catch (error) {
+      next(error);
+    }
   });
 };
 
@@ -104,7 +114,9 @@ app.use(session({
   }
 }));
 
-// Serve static files from the public directory
+// Serve static files from the public directory. The root mount mirrors Vite's
+// publicDir behavior for /robots.txt, /sitemap.xml, and /images/* in dev.
+app.use(express.static(path.join(process.cwd(), 'public'), { index: false }));
 app.use('/public', express.static(path.join(process.cwd(), 'public')));
 
 app.use((req, res, next) => {

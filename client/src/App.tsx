@@ -16,6 +16,7 @@ import GeneratePage from "@/pages/generate";
 import CreatorsPage from "@/pages/creators";
 import SchedulePage from "@/pages/schedule";
 import PipelinesPage from "@/pages/pipelines";
+import Seo from "@/components/Seo";
 import BlogToTwitterPage from "@/pages/seo/blog-to-twitter";
 import LinkedInPostGeneratorPage from "@/pages/seo/linkedin-post-generator";
 import YouTubeToBlogPage from "@/pages/seo/youtube-to-blog";
@@ -51,6 +52,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ContentProvider>
+          <Seo />
           <Router />
           <Toaster />
         </ContentProvider>
