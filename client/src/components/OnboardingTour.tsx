@@ -4,9 +4,19 @@ import { useContent } from '@/context/ContentContext';
 import { apiRequest } from '@/lib/queryClient';
 import { Sparkles, X, ArrowRight, Clock, Linkedin } from 'lucide-react';
 
+// Three example hooks aligned with the new value-led archetypes from the
+// generation prompt: SPECIFIC DETAIL, IN MEDIA RES, PLAIN OBSERVATION. They
+// reference the example source ("The Future of Remote Work") so the user can
+// see the same input → these outputs mapping when they later paste their own.
+const EXAMPLE_HOOKS = [
+  { text: 'We cut our office footprint by 41% — and shipped faster.', delay: '0.9s', border: '#0077b5' },
+  { text: 'Three weeks before the all-hands, half the team had quit.',     delay: '1.1s', border: '#0099dd' },
+  { text: 'Remote work hasn\'t changed productivity. It changed visibility.', delay: '1.3s', border: '#33aaee' },
+];
+
 export default function OnboardingTour() {
-  const { user, isLoggedIn } = useAuth();
-  const { showSampleOutput, outputs } = useContent();
+  const { user, isLoggedIn, updateUser } = useAuth();
+  const { showSampleOutput } = useContent();
   const [showWelcome, setShowWelcome] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,34 +29,36 @@ export default function OnboardingTour() {
     }
   }, [isLoggedIn, user]);
 
+  // Mark onboarding as complete on the server AND patch local user state so
+  // the modal doesn't pop again on the next route change. (Previously only
+  // the DB was updated and the React user object stayed stale → modal kept
+  // re-opening every time the OnboardingTour re-mounted.)
+  const markComplete = async () => {
+    updateUser({ hasSeenOnboarding: true });
+    try {
+      await apiRequest('/api/users/onboarding-complete', { method: 'POST' });
+    } catch {
+      // Silent — local state already updated; server will sync on next load.
+    }
+  };
+
   const handleTryDemo = async () => {
     setIsLoading(true);
-
-    // Show the sample output
     showSampleOutput();
-
-    // Mark onboarding as complete
-    try {
-      await apiRequest('/api/users/onboarding-complete', {
-        method: 'POST'
-      });
-    } catch (e) {
-      // Silently fail
-    }
-
+    await markComplete();
     setShowWelcome(false);
     setIsLoading(false);
   };
 
   const handleDismiss = () => {
     setShowWelcome(false);
-    // Mark onboarding as complete in background (fire-and-forget)
-    apiRequest('/api/users/onboarding-complete', {
-      method: 'POST'
-    }).catch(() => {});
+    void markComplete();
   };
 
   if (!showWelcome) return null;
+
+  const firstName = user?.name?.split(' ')[0]?.trim();
+  const greeting = firstName ? `Welcome, ${firstName}!` : 'Welcome!';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -59,14 +71,14 @@ export default function OnboardingTour() {
         <button
           onClick={handleDismiss}
           className="absolute top-4 right-4 z-20 p-2 text-white/40 hover:text-white/70 transition-colors"
+          aria-label="Close onboarding"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="relative z-10 p-6 pt-8">
-          {/* Compact welcome */}
           <h2 className="text-lg font-semibold text-[#faf7f2] mb-4 text-center">
-            Welcome, {user?.name?.split(' ')[0] || 'there'}!
+            {greeting}
           </h2>
 
           {/* Transformation illustration */}
@@ -77,15 +89,15 @@ export default function OnboardingTour() {
               backgroundSize: '20px 20px',
             }}
           >
-            {/* Speed badge */}
+            {/* Speed badge — set conservative; real generation is ~10-15s. */}
             <div className="absolute -top-2.5 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-400 font-medium">
               <Clock className="w-3 h-3" />
-              ~60s
+              ~15s
             </div>
 
-            {/* Input: Blog post card */}
+            {/* Input: source content card */}
             <div className="animate-fade-in">
-              <div className="text-[10px] uppercase tracking-wider text-[#faf7f2]/30 mb-1.5 font-medium">Your blog post</div>
+              <div className="text-[10px] uppercase tracking-wider text-[#faf7f2]/30 mb-1.5 font-medium">Any source: blog, transcript, draft</div>
               <div className="bg-white/5 rounded-lg border border-white/10 p-3">
                 <div className="text-xs font-semibold text-[#faf7f2]/70 mb-2">The Future of Remote Work</div>
                 <div className="space-y-1.5">
@@ -96,7 +108,7 @@ export default function OnboardingTour() {
               </div>
             </div>
 
-            {/* Connector: flowing dots + sparkle */}
+            {/* Connector */}
             <div className="flex flex-col items-center py-3 gap-1">
               <div className="w-1 h-1 rounded-full bg-[#0077b5]/40 animate-pulse" style={{ animationDelay: '0ms' }} />
               <div className="w-1 h-1 rounded-full bg-[#0077b5]/60 animate-pulse" style={{ animationDelay: '150ms' }} />
@@ -105,7 +117,7 @@ export default function OnboardingTour() {
                   className="w-4 h-4 text-[#0077b5] animate-pulse"
                   style={{ filter: 'drop-shadow(0 0 8px rgba(0,119,181,0.5))' }}
                 />
-                <span className="text-[10px] text-[#0077b5]/60 font-medium">AI transforms</span>
+                <span className="text-[10px] text-[#0077b5]/60 font-medium">We rework it</span>
               </div>
               <div className="w-1 h-1 rounded-full bg-[#0077b5]/60 animate-pulse" style={{ animationDelay: '300ms' }} />
               <div className="w-1 h-1 rounded-full bg-[#0077b5]/40 animate-pulse" style={{ animationDelay: '450ms' }} />
@@ -113,13 +125,9 @@ export default function OnboardingTour() {
 
             {/* Output: 3 hook cards */}
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-[#0077b5]/60 mb-1.5 font-medium">3 viral hooks</div>
+              <div className="text-[10px] uppercase tracking-wider text-[#0077b5]/60 mb-1.5 font-medium">3 ways to open</div>
               <div className="space-y-1.5">
-                {[
-                  { text: 'The 9-to-5 office model is dead...', delay: '0.9s', border: '#0077b5' },
-                  { text: '73% of employees want this...', delay: '1.1s', border: '#0099dd' },
-                  { text: 'I analyzed 3 years of data...', delay: '1.3s', border: '#33aaee' },
-                ].map((hook, i) => (
+                {EXAMPLE_HOOKS.map((hook, i) => (
                   <div
                     key={i}
                     className="flex items-center justify-between bg-white/5 rounded-lg border border-white/10 p-2.5 animate-fade-in-up"
@@ -148,7 +156,7 @@ export default function OnboardingTour() {
               'Loading...'
             ) : (
               <>
-                Show Me How It Works
+                Try an example
                 <ArrowRight className="w-5 h-5" />
               </>
             )}
@@ -160,7 +168,7 @@ export default function OnboardingTour() {
             className="w-full mt-3 text-sm text-[#faf7f2]/40 hover:text-[#faf7f2]/60 transition-colors animate-fade-in-up"
             style={{ animationDelay: '1.6s' }}
           >
-            I'll explore on my own
+            Skip — I'll paste my own
           </button>
         </div>
       </div>

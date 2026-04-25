@@ -21,6 +21,10 @@ interface AuthContextType {
   loginWithGoogle: () => void;
   loginWithLinkedIn: () => void;
   logout: () => Promise<void>;
+  // Locally patch the user object + persisted localStorage. Use after a
+  // mutation that already succeeded server-side so React state matches the
+  // database without an extra /api/auth/me round trip.
+  updateUser: (patch: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -361,6 +365,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = (patch: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      persistUser(next);
+      return next;
+    });
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -370,7 +383,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       loginWithGoogle,
       loginWithLinkedIn,
-      logout
+      logout,
+      updateUser,
     }}>
       {children}
     </AuthContext.Provider>
