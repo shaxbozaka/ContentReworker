@@ -24,7 +24,16 @@ interface RegenerationRequest {
   useEmojis: boolean;
 }
 
-export async function repurposeContent(request: TransformationRequest): Promise<TransformationResponse['outputs']> {
+export interface GenerationOptions {
+  // Recent hooks this user actually copied or posted — used as voice anchors
+  // in the LinkedIn prompt so the model learns this user's taste over time.
+  voiceExamples?: string[];
+}
+
+export async function repurposeContent(
+  request: TransformationRequest,
+  options: GenerationOptions = {},
+): Promise<TransformationResponse['outputs']> {
   const { content, contentSource, platforms, tone, outputLength, useHashtags, useEmojis } = request;
 
   // Prepare system instructions
@@ -33,7 +42,7 @@ export async function repurposeContent(request: TransformationRequest): Promise<
   const platformPrompts = platforms.map(platform => {
     return {
       platform,
-      prompt: getPlatformPrompt(platform, contentSource, content)
+      prompt: getPlatformPrompt(platform, contentSource, content, options),
     };
   });
 
@@ -59,11 +68,14 @@ export async function repurposeContent(request: TransformationRequest): Promise<
   return outputs;
 }
 
-export async function regenerateContent(request: RegenerationRequest): Promise<PlatformOutput> {
+export async function regenerateContent(
+  request: RegenerationRequest,
+  options: GenerationOptions = {},
+): Promise<PlatformOutput> {
   const { content, contentSource, platform, tone, outputLength, useHashtags, useEmojis } = request;
 
   const systemInstructions = getSystemInstructions(tone, outputLength, useHashtags, useEmojis);
-  const prompt = getPlatformPrompt(platform, contentSource, content);
+  const prompt = getPlatformPrompt(platform, contentSource, content, options);
 
   return await generateContent(systemInstructions, prompt, platform);
 }
@@ -277,7 +289,12 @@ function getSystemInstructions(
   `;
 }
 
-function getPlatformPrompt(platform: PlatformType, contentSource: ContentSource, content: string): string {
+function getPlatformPrompt(
+  platform: PlatformType,
+  contentSource: ContentSource,
+  content: string,
+  options: GenerationOptions = {},
+): string {
   const basePrompt = `
     The following content is from a ${contentSource.toLowerCase()}:
 
@@ -287,6 +304,25 @@ function getPlatformPrompt(platform: PlatformType, contentSource: ContentSource,
 
     Please transform this content into a format optimized for ${platform}.
   `;
+
+  // Voice anchors: hooks this user has previously copied to clipboard or
+  // actually posted to the platform. These are evidence of voice/style that
+  // works for THEM specifically. Only injected for LinkedIn (other platforms
+  // can be added once they have analytics signal).
+  const voiceAnchors =
+    platform === 'LinkedIn' && options.voiceExamples && options.voiceExamples.length > 0
+      ? `
+
+        **VOICE ANCHORS — this user's previously successful hooks (they were copied or posted):**
+        ${options.voiceExamples.map((h, i) => `${i + 1}. ${h}`).join('\n        ')}
+
+        Use these as voice/cadence reference. DO NOT copy them or generate the same content —
+        the new hooks must be specific to the new source above. Match the way THIS person opens
+        a post: their level of specificity, their sentence length, their willingness (or not) to
+        tell stories, their authority register. If their previous hooks lean specific-detail, do
+        more of that. If they lean in-medias-res, do more of that.
+      `
+      : '';
 
   switch (platform) {
     case "Twitter":
@@ -320,6 +356,7 @@ function getPlatformPrompt(platform: PlatformType, contentSource: ContentSource,
     case "LinkedIn":
       return `
         ${basePrompt}
+        ${voiceAnchors}
 
         Write a LinkedIn post that earns attention through value, not by demanding it. The 2021-era
         "Hot take:" / "Stop scrolling." / "Most people get X wrong. Here's why." formulas are now

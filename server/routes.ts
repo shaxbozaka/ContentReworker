@@ -331,6 +331,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Voice anchors: hooks the user has previously copied or posted. Used to
+      // tune the LinkedIn hook generation toward this user's actual taste.
+      // Only fetch when LinkedIn is in the requested platforms — saves a query
+      // on Twitter/Instagram/Threads/Email-only generations.
+      const voiceExamples = validatedData.platforms.includes('LinkedIn')
+        ? await storage.getUserSuccessfulHookExamples(userId, 'LinkedIn', 3).catch((err) => {
+            console.warn('[voiceExamples] failed to load:', err);
+            return [] as string[];
+          })
+        : [];
+
       // Use Gemini as primary provider with automatic fallback
       let outputs;
       const providerOrder = getProviderFallbackOrder(validatedData.aiProvider);
@@ -354,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
           } else {
             if (!process.env.GEMINI_API_KEY) continue;
-            outputs = await geminiService.repurposeContent(validatedData);
+            outputs = await geminiService.repurposeContent(validatedData, { voiceExamples });
           }
           break; // Success — stop trying other providers
         } catch (err) {
@@ -428,7 +439,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         useHashtags: useHashtags || false,
         useEmojis: useEmojis || false
       };
-      
+
+      // Voice anchors for LinkedIn regeneration — same feedback loop as /api/repurpose.
+      const regenUserId = req.session?.userId;
+      const voiceExamples = (platform === 'LinkedIn' && regenUserId)
+        ? await storage.getUserSuccessfulHookExamples(regenUserId, 'LinkedIn', 3).catch(() => [] as string[])
+        : [];
+
       let output;
 
       // Use Gemini as primary provider
@@ -448,7 +465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "Gemini API key (GEMINI_API_KEY) is not configured."
           });
         }
-        output = await geminiService.regenerateContent(regenerationRequest);
+        output = await geminiService.regenerateContent(regenerationRequest, { voiceExamples });
       }
       
       // Return the response

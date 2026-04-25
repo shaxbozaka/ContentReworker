@@ -702,6 +702,56 @@ export class DatabaseStorage implements IStorage {
       feedback: data.feedback,
     });
   }
+
+  // Returns the user's recent hooks where they took a real action: posted to
+  // the platform, copied to clipboard, or thumbs-upped. These are the
+  // ground-truth signals for what voice/style works for THIS user, and they
+  // get fed back into the generation prompt as voice anchors.
+  // Ranking: posted > copied > thumbs-up, then most recent.
+  async getUserSuccessfulHookExamples(
+    userId: number,
+    platform: string = 'LinkedIn',
+    limit: number = 3,
+  ): Promise<string[]> {
+    const rows = await db
+      .select({
+        hookContent: hookAnalytics.hookContent,
+        wasPosted: hookAnalytics.wasPosted,
+        wasCopied: hookAnalytics.wasCopied,
+      })
+      .from(hookAnalytics)
+      .where(
+        and(
+          eq(hookAnalytics.userId, userId),
+          eq(hookAnalytics.platform, platform),
+          or(
+            eq(hookAnalytics.wasPosted, true),
+            eq(hookAnalytics.wasCopied, true),
+            eq(hookAnalytics.feedback, 1),
+          ),
+          sql`${hookAnalytics.hookContent} IS NOT NULL`,
+          sql`length(${hookAnalytics.hookContent}) > 0`,
+        ),
+      )
+      .orderBy(
+        desc(hookAnalytics.wasPosted),
+        desc(hookAnalytics.wasCopied),
+        desc(hookAnalytics.createdAt),
+      )
+      .limit(limit);
+
+    // Deduplicate identical hooks (user might have copied the same hook twice).
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const r of rows) {
+      if (!r.hookContent) continue;
+      const trimmed = r.hookContent.trim();
+      if (!trimmed || seen.has(trimmed)) continue;
+      seen.add(trimmed);
+      out.push(trimmed);
+    }
+    return out;
+  }
 }
 
 // Use DatabaseStorage instead of MemStorage
