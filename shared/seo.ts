@@ -345,3 +345,31 @@ export function injectSeoHead(html: string, path: string): string {
 
   return html.replace("</head>", `${head}\n  </head>`);
 }
+
+// Inline styles (not Tailwind classes) so the fallback renders correctly even
+// before the main stylesheet loads. Colors mirror the slate-900/600 + Inter
+// stack so the visual swap when React mounts is minimal.
+export function renderSeoBody(path: string): string {
+  const page = getSeoPage(path);
+  if (page.robots?.startsWith("noindex")) return "";
+
+  // Strip the "| Content Reworker" suffix for cleaner h1 display.
+  const headline = escapeHtml(page.title.split("|")[0].trim());
+  const description = escapeHtml(page.description);
+  const features =
+    page.featureList && page.featureList.length
+      ? `<ul style="text-align:left;max-width:34rem;margin:1.5rem auto 0;padding-left:1.25rem;color:#475569;font-size:1rem;line-height:1.7">${page.featureList
+          .map((f) => `<li style="margin:0.35rem 0">${escapeHtml(f)}</li>`)
+          .join("")}</ul>`
+      : "";
+
+  return `<div data-prerendered="seo-fallback" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5rem 1.5rem;text-align:center;font-family:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif"><main style="max-width:48rem"><h1 style="font-size:clamp(2rem,5vw,3.5rem);font-weight:800;margin:0 0 1rem;letter-spacing:-0.02em;color:#0f172a">${headline}</h1><p style="font-size:1.125rem;line-height:1.6;color:#475569;margin:0">${description}</p>${features}</main></div>`;
+}
+
+// Combined: meta/head + prerendered body skeleton. Used by the SPA catch-all.
+export function injectSeoSnapshot(html: string, path: string): string {
+  const withHead = injectSeoHead(html, path);
+  const body = renderSeoBody(path);
+  if (!body) return withHead;
+  return withHead.replace('<div id="root"></div>', `<div id="root">${body}</div>`);
+}

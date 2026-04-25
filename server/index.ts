@@ -11,7 +11,7 @@ import { registerRoutes } from "./routes";
 import { TieredSessionStore } from "./services/tiered-session-store";
 import { startScheduler } from "./services/scheduler";
 import { startPipelineScheduler } from "./services/pipeline-scheduler";
-import { injectSeoHead } from "@shared/seo";
+import { injectSeoSnapshot } from "@shared/seo";
 
 // Extend express-session types
 declare module "express-session" {
@@ -49,7 +49,7 @@ const serveStatic = (app: express.Application) => {
 
   app.get("*", (req, res) => {
     res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-    res.status(200).type("html").send(injectSeoHead(indexTemplate, req.originalUrl));
+    res.status(200).type("html").send(injectSeoSnapshot(indexTemplate, req.originalUrl));
   });
 };
 
