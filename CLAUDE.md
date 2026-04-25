@@ -1,264 +1,215 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) and other AI agents working in this repo.
 
-## Project Overview
+## Project overview
 
-Content Reworker is a **LinkedIn-first** AI content repurposing tool that transforms blog posts and articles into viral LinkedIn posts with optimized hooks. Other platforms (Twitter, Threads, Instagram, Email) are available as secondary options.
+Content Reworker turns long-form content into a clean LinkedIn post — with hook
+options, a personalized viral-ideas feed pulled from creators the user
+subscribes to on YouTube (and later, via the open-source extension, on
+LinkedIn / Instagram / TikTok), and a topic-aware recommender that learns
+from 👍 / 👎 feedback.
 
-**Live URL**: https://aicontentrepurposer.com
+- **Live**: https://aicontentrepurposer.com
+- **Repo**: https://github.com/shaxbozaka/ContentReworker (public, MIT)
+- **Status**: Phase 1 shipped (YouTube ingest + recommender). Phase 2 in progress (browser extension).
 
-## Product Mission
-
-**Core Value Proposition**: Turn any blog post into a viral LinkedIn post in 60 seconds with 3 hook variations and 1-click posting.
-
-**Target User**: Content creators, marketers, and professionals who want to maximize their LinkedIn presence without spending hours rewriting content.
-
-**Differentiation**:
-- LinkedIn Hook Optimizer (3 viral hook styles per post)
-- 1-click direct posting to LinkedIn
-- Analytics to learn which hook styles perform best
-
-**Pricing**:
-- Free tier: Limited generations
-- Pro: $19/month or $15/month billed annually ($180/year, 20% discount)
-
-## Development Commands
+## Development commands
 
 ```bash
-npm run dev          # Start development server (tsx server/index.ts)
-npm run build        # Build for production (Vite frontend + esbuild backend)
-npm run start        # Run production build
-npm run check        # TypeScript type checking
-npm run db:push      # Push Drizzle schema to database
+npm run dev          # tsx server/index.ts (Express + Vite middleware)
+npm run build        # Vite client bundle + esbuild server bundle
+npm run start        # production: node dist/index.js
+npm run check        # tsc --noEmit
+npm test             # vitest run
+npm run db:push      # drizzle-kit push (apply schema → DB)
 ```
 
-## Docker Deployment
+Local dev server runs on `PORT=3000` (macOS AirPlay holds 5000). Production binds to `:5000` inside the container, `127.0.0.1:5000` on the host, fronted by nginx + Cloudflare DNS.
+
+## Docker
 
 ```bash
-docker compose up -d              # Start app + PostgreSQL containers
-docker compose build app          # Rebuild app container
-docker compose up -d --force-recreate app  # Deploy changes
-docker compose logs app --tail 50 # View logs
+docker compose up -d postgres   # local dev: just the DB, then `npm run dev`
+docker compose up -d             # full stack (rarely used locally)
+docker compose build app && docker compose up -d app   # rebuild + redeploy
+docker compose logs app --tail=50
 ```
 
-The app runs on port 5000, PostgreSQL on port 5433.
-
-## Screenshot Tool
-
-```bash
-node screenshot.cjs [url] [output]
-node screenshot.cjs https://aicontentrepurposer.com /tmp/screenshot.png
-```
+Postgres on `127.0.0.1:5433` (local) and `127.0.0.1:5433` (prod). App container on prod uses `127.0.0.1:5000`.
 
 ## Architecture
 
 ### Stack
-- **Frontend**: React 18 + Vite + wouter (routing) + TanStack Query + shadcn/ui + Tailwind CSS
-- **Backend**: Express.js with TypeScript (ESM)
-- **Database**: PostgreSQL with Drizzle ORM
-- **AI**: Google Gemini (gemini-2.0-flash) as primary provider - fast, cheap, quality. OpenAI and Anthropic available as fallbacks.
-- **Auth**: Google OAuth + LinkedIn OAuth + username/password
-- **Payments**: Stripe (subscriptions via Checkout Sessions + webhooks)
 
-### Directory Structure
-- `client/` - React frontend
-  - `src/components/` - UI components (shadcn/ui in `ui/`, app components at root)
-    - `ProPaywall.tsx` - Reusable premium feature paywall component
-    - `DemoSection.tsx` - Animated demo with human-like cursor movement
-  - `src/pages/` - Route pages (home, accounts, pricing, schedule, generate, carousel, etc.)
-  - `src/context/ContentContext.tsx` - Global content state management
-  - `src/context/AuthContext.tsx` - Global authentication state (Google OAuth, login/logout)
-- `server/` - Express backend
-  - `routes.ts` - All API endpoints
-  - `storage.ts` - Database operations
-  - `services/` - External service integrations:
-    - `openai.ts`, `gemini.ts`, `anthropic.ts` - AI providers
-    - `linkedin.ts` - LinkedIn OAuth and posting
-    - `google-auth.ts` - Google OAuth
-    - `scheduler.ts` - Background job scheduler for scheduled posts
-    - `pdf-carousel.ts` - PDF carousel generation
-    - `image-generation.ts` - AI image generation
-- `shared/schema.ts` - Drizzle tables + Zod validation schemas (shared between client/server)
+- **Frontend**: React 18 + Vite + Tailwind + shadcn/ui + wouter (routing) + TanStack Query
+- **Backend**: Express + TypeScript via tsx (dev), esbuild bundle (prod)
+- **DB**: PostgreSQL via Drizzle ORM (`shared/schema.ts` is the source of truth)
+- **AI**: Gemini `2.5-flash-lite` (primary; chosen because `2.0-flash` has 0 free-tier quota for our project and `2.5-flash` throws transient 503s). OpenAI + Anthropic in the fallback chain. Topic tagging uses the same Gemini model via the OpenAI-compatible endpoint at `https://generativelanguage.googleapis.com/v1beta/openai/`.
+- **Auth**: Google OAuth (with optional `youtube.readonly` scope for YouTube import), LinkedIn OAuth, username/password (bcrypt). Sessions are Postgres-backed via `connect-pg-simple`, fronted by an in-process LRU cache (`server/services/tiered-session-store.ts`).
+- **Billing**: Paddle (live keys; webhook signature verified via HMAC + timing-safe compare).
+- **Headers**: helmet middleware for HSTS / Referrer-Policy / X-Content-Type-Options / X-Frame-Options. CSP intentionally off until tuned.
 
-### Key API Endpoints
+### Directory layout
 
-**Content Transformation**
-- `POST /api/repurpose` - Transform content for multiple platforms
-- `POST /api/repurpose/regenerate` - Regenerate content for single platform
-
-**Authentication**
-- `GET /api/auth/google` - Get Google OAuth URL
-- `GET /api/auth/google/callback` - Google OAuth callback
-- `GET /api/auth/me` - Get current logged-in user
-- `GET /api/auth/linkedin/login` - LinkedIn OAuth for login
-- `GET /api/auth/linkedin/callback` - LinkedIn OAuth callback (handles both login and connect flows via state prefix)
-- `POST /api/users/register`, `POST /api/users/login` - User authentication
-
-**Social Posting**
-- `POST /api/social/linkedin/post` - Post content to LinkedIn
-
-**Billing (Stripe)**
-- `POST /api/billing/checkout` - Create Stripe Checkout session
-- `POST /api/billing/webhook` - Stripe webhook endpoint (signature verification)
-- `GET /api/billing/status` - Get user subscription status
-- `POST /api/billing/portal` - Get Stripe billing portal URL
-
-**Scheduled Posts (Pro Feature)**
-- `GET /api/scheduled-posts` - Get user's scheduled posts
-- `POST /api/scheduled-posts` - Create scheduled post
-- `DELETE /api/scheduled-posts/:id` - Delete scheduled post
-
-**Pro Features**
-- `POST /api/carousel/generate` - Generate PDF carousel
-- `POST /api/images/generate` - AI image generation
-
-**Analytics**
-- `POST /api/analytics/hook-selection` - Track hook selection, copy, and post events
-
-### Database Schema (shared/schema.ts)
-
-**Users Table**
-- `id`, `username`, `password`, `email`, `googleId`, `linkedinId`, `name`, `avatarUrl`
-- Subscription fields: `plan` ('free' | 'pro'), `stripeCustomerId`, `stripeSubscriptionId`, `subscriptionStatus`, `subscriptionEndDate`
-- `createdAt`
-
-**Other Tables**
-- `transformations` - Content transformation records
-- `transformationOutputs` - Generated content per platform
-- `socialConnections` - OAuth tokens for social platforms (LinkedIn)
-- `scheduledPosts` - Scheduled posts for future publishing (userId, content, platform, scheduledAt, status)
-- `hookAnalytics` - Tracks which hooks users select, copy, and post (hookType, hookIndex, platform, wasCopied, wasPosted)
-
-## Stripe Integration
-
-### Setup
-Webhooks are created programmatically via API. To recreate:
-```javascript
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-await stripe.webhookEndpoints.create({
-  url: 'https://aicontentrepurposer.com/api/billing/webhook',
-  enabled_events: [
-    'checkout.session.completed',
-    'customer.subscription.created',
-    'customer.subscription.updated',
-    'customer.subscription.deleted',
-    'invoice.payment_succeeded',
-    'invoice.payment_failed',
-  ],
-});
+```
+client/
+  src/
+    pages/           home, trending (Ideas), creators, accounts, pricing,
+                     schedule, history, generate, privacy-policy, terms-of-service
+    components/
+      ui/            shadcn/ui primitives
+      *.tsx          ContentRepurposer, PlatformOutput, AppHeader, Footer, etc.
+    context/         ContentContext (repurposer state), AuthContext
+    lib/             queryClient (apiRequest helper), analytics
+server/
+  index.ts           Express setup, helmet, sessions, vite middleware in dev
+  routes.ts          ALL HTTP routes (~3000 lines; grep your way around)
+  db.ts              Drizzle pool + db handle
+  storage.ts         DB read/write helpers
+  middleware/
+    auth.ts          requireAdmin (admin gate), regenerateSession (session-fixation defence)
+  services/
+    gemini.ts        Gemini repurpose + carousel-style generation (carousel removed)
+    openai.ts        OpenAI fallback
+    anthropic.ts     Anthropic fallback
+    google-auth.ts   Google OAuth (login + youtube.readonly scope variant)
+    linkedin.ts      LinkedIn OAuth + posting
+    trending.ts      Trending content (HN/Reddit/YouTube), curatedVirals storage,
+                     getCuratedVirals = the recommender
+    scrapers/youtube.ts        Per-channel ingest via YouTube Data API v3
+    competitor-ingest.ts       Orchestrator: walks tracked_accounts, calls scraper, upserts
+    viral-tagger.ts            Gemini-powered topic tagging (3-5 kebab-case tags per post)
+    youtube-bootstrap.ts       OAuth callback hook: import subscriptions + liked videos
+    tiered-session-store.ts    LRU cache wrapping connect-pg-simple
+    scheduler.ts               Background scheduled-posts job
+    pipeline-scheduler.ts      Background content-pipeline job
+shared/schema.ts     Drizzle tables + Zod schemas. RUN `npm run db:push` after edits.
 ```
 
-### Important Notes
-- Test mode and Live mode have separate webhooks and secrets
-- Webhook endpoint skips JSON body parsing (needs raw body for signature verification)
-- Customer is created before checkout session for better tracking
-- Metadata includes userId on both session and subscription
+### Recommender (Phase 1)
 
-## Custom Agents
+`server/services/trending.ts:getCuratedVirals` — score per candidate post:
 
-Located in `.claude/agents/`:
-
-- **ceo** - Business strategy, market positioning, monetization, growth, competitive analysis. Thinks like a startup founder - focused on outcomes, not code.
-- **cto** - Technical architecture, security audits, code quality, performance, infrastructure, technical debt. Owns all engineering decisions with specific file/line-level detail.
-- **designer** - UI/UX design reviews, visual design feedback, accessibility audits, design system decisions, component design, layout critiques.
-
-## Environment Variables
-
-Required in `.env` or `.env.production`:
-
-```bash
-# Database
-DATABASE_URL=postgresql://user:pass@host:port/db
-
-# AI Providers
-GEMINI_API_KEY=xxx          # Primary AI provider
-OPENAI_API_KEY=xxx          # Optional fallback
-ANTHROPIC_API_KEY=xxx       # Optional fallback
-
-# Session
-SESSION_SECRET=xxx
-
-# Google OAuth
-GOOGLE_CLIENT_ID=xxx
-GOOGLE_CLIENT_SECRET=xxx
-GOOGLE_REDIRECT_URI=https://aicontentrepurposer.com/api/auth/google/callback
-BASE_URL=https://aicontentrepurposer.com
-
-# LinkedIn OAuth
-LINKEDIN_CLIENT_ID=xxx
-LINKEDIN_CLIENT_SECRET=xxx
-LINKEDIN_REDIRECT_URI=https://aicontentrepurposer.com/api/auth/linkedin/callback
-
-# Stripe (Billing)
-STRIPE_SECRET_KEY=xxx              # sk_test_xxx or sk_live_xxx
-STRIPE_WEBHOOK_SECRET=xxx          # whsec_xxx (from webhook creation)
+```
++ trackedCreator       (5)        if post.tracked_account_id ∈ user's accounts
++ topic_overlap        (up to 9)  topics(post) ∩ topic-weights from user's positive interactions
++ engagement_velocity  (×0.5)     log10(views / max(1, age_hours))
++ freshness            (1)        gentle decay over 30 days
++ positive_interaction (×0.4)     extra weight when this user already 👍/used/copied this post
+- hidden_creator       (50)       if user 👎'd this creator
 ```
 
-## Key Features
+Plus a max-2-per-creator diversity cap. Tags come from `viral-tagger.ts` (one Gemini call per ingested post). Anonymous users fall back to plain views-sorted.
 
-### Core (Free)
-- **Content Transformation**: Paste blog post → get LinkedIn post with 3 hook variations
-- **LinkedIn Hook Optimizer**: 3 viral hook styles (curiosity gap, bold statement, story-based)
-- **One-Click LinkedIn Posting**: Connect account and post directly
-- **Platform Flexibility**: LinkedIn (primary), Twitter, Threads, Instagram, Email
-- **Google/LinkedIn Sign In**: OAuth authentication
+### Key API endpoints
 
-### Pro ($19/month or $15/month annual)
-- **Scheduled Posts**: Schedule LinkedIn posts for future publishing
-- **PDF Carousel Generator**: Create downloadable carousel PDFs
-- **AI Image Generation**: Generate images for posts
-- **Priority Support**
+```
+POST /api/repurpose                    # core: generate LinkedIn post + hooks
+POST /api/repurpose/regenerate         # regenerate single platform output
 
-### Analytics (Internal)
-- **Hook Selection Tracking**: Which hooks users select, copy, and post
-- **Performance Data**: Content length, platform, conversion to post
+GET  /api/auth/me                      # current session user
+GET  /api/auth/google                  # OAuth URL (login only)
+GET  /api/auth/google/youtube          # OAuth URL with youtube.readonly scope
+GET  /api/auth/google/callback         # validates state, persists tokens, kicks off YT import
+GET  /api/auth/linkedin/login + /callback
+POST /api/users/register | login | logout
 
-## Recent Changes
+GET  /api/users                        # admin only (requireAdmin middleware)
+GET  /api/users/:userId/social-connections
 
-### LinkedIn-First Strategy (Jan 2026)
-- Simplified platform selection: LinkedIn prominently featured, others collapsed under "More platforms"
-- Removed podcast/YouTube transcript references - focused on blog posts
-- Dynamic "Create [Platform] Post" button based on selection
+GET  /api/tracked-accounts             # user's tracked creators per platform
+POST /api/tracked-accounts             # add one
+DELETE /api/tracked-accounts/:id
+POST /api/tracked-accounts/:id/refresh # ingest now (rate-limited)
+POST /api/integrations/youtube/import  # manual re-sync of subs
 
-### Pricing Update (Jan 2026)
-- Standardized pricing: $19/month or $15/month annually ($180/year)
-- Added annual/monthly toggle on pricing page with 20% discount messaging
-- Clear value comparison between Free and Pro tiers
+GET  /api/preferences | PUT /api/preferences   # niche/topics/audience/languages
 
-### Hook Analytics (Jan 2026)
-- New `hookAnalytics` database table
-- Tracks: hook selection, copy events, successful posts
-- Data: hookType, hookIndex, platform, contentLength, wasCopied, wasPosted
-- Frontend tracking in `PlatformOutput.tsx` and `LinkedInPostModal.tsx`
+POST /api/viral/:id/interaction        # record view/use/copy/like/hide
+POST /api/viral/ingest                 # 501 stub — Phase 2 browser-extension target
 
-### UI Improvements (Jan 2026)
-- Fixed cursor animation in `DemoSection.tsx` using ref-based position tracking
-- Fixed hook generation stripping leading numbers (regex: `\d+[.\)]\s*` not `\d+\.?\s*`)
-- Dark mode for Advanced Settings (`AiSettings.tsx`)
-- `ProPaywall.tsx` - Premium dark-themed paywall component with glow effects
-- Human-like cursor animation using bezier curves and natural easing
+GET  /api/trending/curated             # the Ideas feed (passes session userId to ranker)
+POST /api/trending/refresh             # rate-limited; refreshes HN/Reddit/YT trending
+POST /api/trending/seed-curated        # rate-limited
 
-### Stripe Billing Integration
-- Checkout Sessions with customer creation
-- Webhook handling for subscription lifecycle events
-- Raw body parsing fix for webhook signature verification
-- Billing portal for subscription management
+POST /api/billing/checkout             # Paddle checkout session
+POST /api/billing/webhook              # Paddle webhook (raw body, HMAC verified)
+POST /api/billing/portal               # Paddle billing portal URL
+```
 
-### Scheduled Posts
-- Background scheduler service (`server/services/scheduler.ts`)
-- Database table for storing scheduled posts
-- UI at `/schedule` with Pro paywall
+Rate limiters live at the top of `server/routes.ts`:
+- `repurposeIpLimiter` — 20/IP/hour
+- `loginIpLimiter` — 10/IP/15 min, skips successful logins
+- `registerIpLimiter` — 5/IP/hour
+- `expensiveApiLimiter` — 30/IP/hour for the trending refresh / tracked-account refresh / YT import endpoints
 
-### LinkedIn OAuth Fix
-- Consolidated callback handling with state-based flow differentiation
-- Login flow uses `login_` state prefix
-- Connect flow for linking existing accounts
+### Database schema highlights
 
-## Roadmap / Next Steps
+- **users**: id, username, password (bcrypt), email, googleId, googleAccessToken, googleRefreshToken, googleTokenExpiry, googleScopes, linkedinId, plan, paddleCustomerId, paddleSubscriptionId, …
+- **tracked_accounts**: per-user creator handles per platform with `source` (manual / youtube_subscription / instagram_following / …)
+- **curated_virals**: ingested posts, includes mediaType + videoUrl + thumbnailUrl + duration + platformPostId + trackedAccountId + topics (json) + topicsTaggedAt
+- **viral_interactions**: feedback signals per (user, viral, action) with weight column
+- **user_content_preferences**: niche / target_audience / content_goal / topics[] / languages[]
+- **trending_content**: HN/Reddit/YouTube generic trending (legacy; Trending tab data source)
+- **transformations** + **transformation_outputs**: repurpose history (per-user-scoped now after C2 fix)
+- **scheduled_posts**, **content_pipelines**, **pipeline_drafts**: scheduled-posting / pipeline features
+- **hook_analytics**: hook performance tracking
+- **user_sessions**: connect-pg-simple table (auto-created)
 
-1. **Measure hook performance** - Analyze which hook styles get selected/copied/posted most
-2. **A/B test hooks** - Use analytics to improve hook generation prompts
-3. **Social proof** - Add real user testimonials and metrics
-4. **Content library** - Let users save and organize generated content
-5. **Team features** - Collaboration for agencies/teams (future Pro+ tier)
+## Conventions
+
+### Commit messages
+- Format: `<area>: <imperative summary>` then a body explaining *why*, not what.
+- Common areas: `feat`, `fix`, `security`, `docs`, `chore`, `perf`, `refactor`.
+- **Don't** add `Co-Authored-By: Claude …` trailers. Author commits as the user only.
+
+### Before committing
+1. `npm run check` — typecheck must pass; no warnings ignored
+2. `npm test` — all green
+3. Read your own diff (`git diff --stat`, `git diff <file>`) like a reviewer
+
+### Schema changes
+1. Edit `shared/schema.ts`
+2. `npm run db:push` (drizzle-kit applies the diff)
+3. If drizzle-kit asks "renamed from X?" — answer "+ create" unless you know it's a rename; renames preserve data
+4. On prod: `ssh liza "docker compose exec -T app sh -c 'npx drizzle-kit push --config=drizzle.config.ts'"`
+
+### Adding a new route
+1. Add it to `server/routes.ts` near siblings (auth → next to other auth routes, billing → near Paddle handlers)
+2. Always call `ensureUserId(req)` for state-changing routes; for read routes, gate with `req.session.userId` if data is user-scoped
+3. Double-check ownership when accepting `:id` params — the IDOR-fix pattern is `if (row.userId !== req.session.userId) return 404`
+4. Apply a rate limiter if the endpoint is expensive or auth-adjacent
+
+### Adding a new AI provider
+- Implement in `server/services/<provider>.ts` matching the existing shape (`repurposeContent(input) → outputs`)
+- Wire into `getProviderFallbackOrder` in `server/routes.ts`
+- Update `aiProviders` enum in `shared/schema.ts`
+
+### Things that have been removed (don't reintroduce)
+- **Stripe billing** → replaced by Paddle. References to Stripe in code are dead.
+- **LinkedIn carousel feature** (PDF carousel, slide editor, image generation for slides) → removed entirely on 2026-04-24.
+- **Old generic trending firehose UI** → kept the API for now but not surfaced; Ideas page is the user-personalized recommender feed.
+
+### Things that are currently deferred (see SECURITY.md / README roadmap)
+- CSRF token middleware (SameSite=Lax covers the common cases for now)
+- Multi-replica scaling (rate-limit store + tiered-session-store both assume single replica)
+- drizzle-orm 0.39 → 0.45 major upgrade (high-severity CVE; not exploitable in our code paths but worth doing)
+- Email + password reset flow (not built yet — Nodemailer + bcrypt are in deps when ready)
+- Browser extension for LinkedIn / Instagram / TikTok ingest (Phase 2)
+
+## Production access
+
+- App lives at `/root/ContentReworker/` on host `liza` (91.99.27.70)
+- Deploy = `git push production main`. Push triggers `updateInstead` policy on the bare-ish server checkout. Then SSH and `docker compose build app && docker compose up -d app` to rebuild the container.
+- Postgres: `docker exec contentreworker-postgres-1 psql -U contentreworker -d contentreworker_prod`
+- Logs: `ssh liza "docker compose -f /root/ContentReworker/docker-compose.yml logs app --tail=100"`
+
+## Reading order for new contributors / agents
+
+1. `README.md` — what the product is + quick start
+2. `SECURITY.md` — disclosure policy
+3. `shared/schema.ts` — the data model
+4. `server/routes.ts` — every HTTP endpoint
+5. `server/services/trending.ts:getCuratedVirals` — the recommender
+6. `client/src/pages/home.tsx` + `creators.tsx` + `trending.tsx` — the three main user-facing routes
