@@ -31,6 +31,7 @@ import {
   Send,
   FileText,
 } from "lucide-react";
+import { FaLinkedin, FaXTwitter, FaInstagram, FaThreads } from "react-icons/fa6";
 import {
   Dialog,
   DialogContent,
@@ -352,13 +353,13 @@ export default function SchedulePage() {
   const getPlatformIcon = (platform: string) => {
     switch (platform.toLowerCase()) {
       case 'linkedin':
-        return <i className="fab fa-linkedin text-[#0A66C2]" />;
+        return <FaLinkedin className="w-4 h-4 text-[#0A66C2]" />;
       case 'twitter':
-        return <i className="fab fa-x-twitter" />;
+        return <FaXTwitter className="w-4 h-4" />;
       case 'instagram':
-        return <i className="fab fa-instagram text-pink-500" />;
+        return <FaInstagram className="w-4 h-4 text-pink-500" />;
       case 'threads':
-        return <i className="fab fa-threads" />;
+        return <FaThreads className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
     }

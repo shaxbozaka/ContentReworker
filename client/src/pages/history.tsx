@@ -15,6 +15,7 @@ import {
   Check,
   Clock,
   FileText,
+  Mail,
   Loader2,
   ArrowRight,
   ChevronDown,
@@ -22,6 +23,7 @@ import {
   Send,
   FileEdit,
 } from "lucide-react";
+import { FaXTwitter, FaLinkedin, FaInstagram } from "react-icons/fa6";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,13 +77,14 @@ function timeAgo(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
-function getPlatformIcon(platform: string): string {
+function PlatformIcon({ platform, className }: { platform: string; className?: string }) {
+  const cls = `${className ?? ""} ${getPlatformIconColor(platform)} w-3 h-3`.trim();
   switch (platform) {
-    case "Twitter": return "fab fa-x-twitter";
-    case "LinkedIn": return "fab fa-linkedin";
-    case "Instagram": return "fab fa-instagram";
-    case "Email": return "fas fa-envelope";
-    default: return "fas fa-file-alt";
+    case "Twitter": return <FaXTwitter className={cls} />;
+    case "LinkedIn": return <FaLinkedin className={cls} />;
+    case "Instagram": return <FaInstagram className={cls} />;
+    case "Email": return <Mail className={cls} />;
+    default: return <FileText className={cls} />;
   }
 }
 
@@ -283,7 +286,7 @@ export default function HistoryPage() {
                                 key={platform}
                                 className={`w-6 h-6 ${getPlatformColor(platform)} rounded flex items-center justify-center`}
                               >
-                                <i className={`${getPlatformIcon(platform)} ${getPlatformIconColor(platform)} text-xs`}></i>
+                                <PlatformIcon platform={platform} />
                               </div>
                             ))}
                           </div>
@@ -322,7 +325,7 @@ export default function HistoryPage() {
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
                                     <div className={`w-6 h-6 ${getPlatformColor(platform)} rounded flex items-center justify-center`}>
-                                      <i className={`${getPlatformIcon(platform)} ${getPlatformIconColor(platform)} text-xs`}></i>
+                                      <PlatformIcon platform={platform} />
                                     </div>
                                     <span className="font-medium text-white">{platform}</span>
                                     {output.characterCount && (

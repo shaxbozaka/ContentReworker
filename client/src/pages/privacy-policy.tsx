@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { ArrowLeft } from "lucide-react";
 
 export default function PrivacyPolicy() {
   return (
@@ -7,7 +8,7 @@ export default function PrivacyPolicy() {
       <div className="mb-6">
         <Link href="/">
           <Button variant="outline" className="mb-4">
-            <i className="fas fa-arrow-left mr-2"></i> Back to Home
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
           </Button>
         </Link>
         <h1 className="text-3xl font-bold mb-2">Privacy Policy</h1>

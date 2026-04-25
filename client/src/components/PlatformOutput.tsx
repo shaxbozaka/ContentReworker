@@ -7,7 +7,9 @@ import { apiRequest } from "@/lib/queryClient";
 import type { PlatformType, PlatformOutput as PlatformOutputType } from "@shared/schema";
 import LinkedInPostModal from "./LinkedInPostModal";
 import ScheduleModal from "./ScheduleModal";
-import { ImagePlus, Download, Loader2, X, Copy, RefreshCw, Edit3, Check, Sparkles, Clock, Zap, ArrowRight, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ImagePlus, Download, Loader2, X, Copy, RefreshCw, Edit3, Check, Sparkles, Clock, Zap, ArrowRight, ThumbsUp, ThumbsDown, Eye, ExternalLink, Mail, FileText } from "lucide-react";
+import { FaLinkedin, FaXTwitter, FaInstagram, FaThreads } from "react-icons/fa6";
+import type { ComponentType } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { analytics } from "@/lib/analytics";
@@ -679,7 +681,7 @@ export default function PlatformOutput({
         <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center">
-              <i className="fab fa-linkedin text-[#0A66C2] text-2xl mr-3"></i>
+              <FaLinkedin className="text-[#0A66C2] text-2xl mr-3" />
               <div>
                 <h4 className="font-bold text-slate-950">Post to LinkedIn</h4>
                 <p className="text-sm font-medium text-slate-500">Sign in to connect your account</p>
@@ -708,7 +710,7 @@ export default function PlatformOutput({
         <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center">
-              <i className="fab fa-linkedin text-[#0A66C2] text-2xl mr-3"></i>
+              <FaLinkedin className="text-[#0A66C2] text-2xl mr-3" />
               <div>
                 <h4 className="font-bold text-slate-950">Post to LinkedIn</h4>
                 <p className="text-sm font-medium text-slate-500">Connect your account to publish</p>
@@ -718,7 +720,7 @@ export default function PlatformOutput({
               onClick={handleConnectLinkedIn}
               className="bg-[#0A66C2] hover:bg-[#004182] text-white"
             >
-              <i className="fab fa-linkedin mr-2"></i> Connect LinkedIn
+              <FaLinkedin className="mr-2" /> Connect LinkedIn
             </Button>
           </div>
         </div>
@@ -735,7 +737,7 @@ export default function PlatformOutput({
         <div className="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50 p-3">
             <div className="w-12 h-12 bg-[#0A66C2] rounded-full flex items-center justify-center">
-              <i className="fab fa-linkedin text-white text-xl"></i>
+              <FaLinkedin className="text-white text-xl" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-bold text-slate-950">
@@ -747,7 +749,7 @@ export default function PlatformOutput({
 
           <div className="bg-white p-4">
             <p className="mb-2 flex items-center text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
-              <i className="fas fa-eye mr-1"></i> Feed Preview
+              <Eye className="mr-1 w-3 h-3" /> Feed Preview
             </p>
             <div className="text-sm leading-7 text-slate-700">
               <span>{first210}</span>
@@ -807,7 +809,7 @@ export default function PlatformOutput({
         <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center">
-              <i className="fab fa-x-twitter text-slate-950 text-2xl mr-3"></i>
+              <FaXTwitter className="text-slate-950 text-2xl mr-3" />
               <div>
                 <h4 className="font-bold text-slate-950">Post to X</h4>
                 <p className="text-sm font-medium text-slate-500">Sign in to connect your account</p>
@@ -830,7 +832,7 @@ export default function PlatformOutput({
         <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center">
-              <i className="fab fa-x-twitter text-slate-950 text-2xl mr-3"></i>
+              <FaXTwitter className="text-slate-950 text-2xl mr-3" />
               <div>
                 <h4 className="font-bold text-slate-950">Post to X</h4>
                 <p className="text-sm font-medium text-slate-500">Connect your account to publish</p>
@@ -840,7 +842,7 @@ export default function PlatformOutput({
               onClick={handleConnectTwitter}
               className="bg-white hover:bg-white/90 text-black"
             >
-              <i className="fab fa-x-twitter mr-2"></i> Connect X
+              <FaXTwitter className="mr-2" /> Connect X
             </Button>
           </div>
         </div>
@@ -856,7 +858,7 @@ export default function PlatformOutput({
       <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center">
-            <i className="fab fa-x-twitter text-slate-950 text-2xl mr-3"></i>
+            <FaXTwitter className="text-slate-950 text-2xl mr-3" />
             <div>
               <p className="font-bold text-slate-950">@{twitterStatus.username}</p>
               <p className="text-sm font-medium text-slate-500">
@@ -876,7 +878,7 @@ export default function PlatformOutput({
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-all"
               >
-                <i className="fas fa-external-link-alt text-xs"></i>
+                <ExternalLink className="w-3 h-3" />
                 View Post
               </a>
             )}
@@ -891,7 +893,7 @@ export default function PlatformOutput({
               {isPostingToTwitter ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <i className="fab fa-x-twitter mr-2"></i>
+                <FaXTwitter className="mr-2" />
               )}
               {postedTweetUrl ? 'Post Again' : (isThread ? 'Post Thread' : 'Post to X')}
             </Button>
@@ -910,7 +912,7 @@ export default function PlatformOutput({
     <div className="platform-output">
       <div className={`${platformInfo.bgClass} flex items-center justify-between rounded-t-lg px-4 py-3`}>
         <div className="flex items-center">
-          <i className={`${platformInfo.icon} text-lg`}></i>
+          <platformInfo.Icon className="text-white text-lg" />
           <h3 className="ml-2 font-bold text-white">{platformInfo.title}</h3>
         </div>
         {platform === "Twitter" && tweetCount > 1 ? (
@@ -1071,43 +1073,23 @@ export default function PlatformOutput({
   );
 }
 
-function getPlatformInfo(platform: PlatformType) {
+function getPlatformInfo(platform: PlatformType): {
+  Icon: ComponentType<{ className?: string }>;
+  bgClass: string;
+  title: string;
+} {
   switch (platform) {
     case 'Twitter':
-      return {
-        icon: 'fab fa-x-twitter text-white',
-        bgClass: 'bg-black',
-        title: 'Twitter / X'
-      };
+      return { Icon: FaXTwitter, bgClass: 'bg-black', title: 'Twitter / X' };
     case 'LinkedIn':
-      return {
-        icon: 'fab fa-linkedin text-white',
-        bgClass: 'bg-[#0A66C2]',
-        title: 'LinkedIn Post'
-      };
+      return { Icon: FaLinkedin, bgClass: 'bg-[#0A66C2]', title: 'LinkedIn Post' };
     case 'Instagram':
-      return {
-        icon: 'fab fa-instagram text-white',
-        bgClass: 'bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500',
-        title: 'Instagram Caption'
-      };
+      return { Icon: FaInstagram, bgClass: 'bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500', title: 'Instagram Caption' };
     case 'Threads':
-      return {
-        icon: 'fab fa-threads text-white',
-        bgClass: 'bg-black',
-        title: 'Threads'
-      };
+      return { Icon: FaThreads, bgClass: 'bg-black', title: 'Threads' };
     case 'Email':
-      return {
-        icon: 'fas fa-envelope text-white',
-        bgClass: 'bg-[#4a5568]',
-        title: 'Email Newsletter'
-      };
+      return { Icon: Mail, bgClass: 'bg-[#4a5568]', title: 'Email Newsletter' };
     default:
-      return {
-        icon: 'fas fa-file-alt text-white',
-        bgClass: 'bg-[#4a5568]',
-        title: 'Content'
-      };
+      return { Icon: FileText, bgClass: 'bg-[#4a5568]', title: 'Content' };
   }
 }

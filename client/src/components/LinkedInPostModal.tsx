@@ -6,7 +6,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Image, X, Loader2, Globe, ChevronDown } from "lucide-react";
+import { Image, X, Loader2, Globe, ChevronDown, Check } from "lucide-react";
+import { FaLinkedin } from "react-icons/fa6";
 import { analytics } from "@/lib/analytics";
 
 interface LinkedInPostModalProps {
@@ -177,7 +178,7 @@ export default function LinkedInPostModal({
           <DialogTitle className="sr-only">Post published successfully</DialogTitle>
           <div className="text-center py-12 px-6">
             <div className="w-20 h-20 bg-[#0A66C2] rounded-full flex items-center justify-center mx-auto mb-6">
-              <i className="fas fa-check text-white text-3xl"></i>
+              <Check className="text-white w-8 h-8" strokeWidth={3} />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Your post is live!
@@ -191,7 +192,7 @@ export default function LinkedInPostModal({
                 onClick={() => window.open("https://www.linkedin.com/feed/", "_blank")}
                 className="border-[#0A66C2] text-[#0A66C2] hover:bg-blue-50"
               >
-                <i className="fab fa-linkedin mr-2"></i>
+                <FaLinkedin className="mr-2 w-4 h-4" />
                 View on LinkedIn
               </Button>
               <Button onClick={handleClose} className="bg-[#0A66C2] hover:bg-[#004182]">

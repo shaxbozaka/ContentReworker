@@ -35,16 +35,19 @@ const serveStatic = (app: express.Application) => {
   const distPath = path.join(process.cwd(), "dist/public");
   const indexPath = path.join(distPath, "index.html");
 
+  // Hashed bundles never change for a given URL — cache them for a year.
+  app.use('/assets', express.static(path.join(distPath, 'assets'), {
+    immutable: true,
+    maxAge: '1y',
+  }));
   app.use(express.static(distPath));
-  
-  // Catch-all handler for SPA
-  app.get("*", async (req, res, next) => {
-    try {
-      const template = await fs.promises.readFile(indexPath, "utf-8");
-      res.status(200).type("html").send(injectSeoHead(template, req.originalUrl));
-    } catch (error) {
-      next(error);
-    }
+
+  // Read the template once at startup; container restart handles updates.
+  const indexTemplate = fs.readFileSync(indexPath, "utf-8");
+
+  app.get("*", (req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.status(200).type("html").send(injectSeoHead(indexTemplate, req.originalUrl));
   });
 };
 

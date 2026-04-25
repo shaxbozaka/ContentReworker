@@ -36,5 +36,26 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/") || id.includes("/wouter/")) {
+            return "react-vendor";
+          }
+          if (id.includes("@radix-ui/")) return "radix";
+          if (id.includes("@tanstack/")) return "query";
+          if (id.includes("react-hook-form") || id.includes("@hookform/")) return "forms";
+          if (id.includes("lucide-react") || id.includes("react-icons")) return "icons";
+          if (id.includes("recharts") || id.includes("d3-")) return "charts";
+          if (id.includes("framer-motion")) return "motion";
+          if (id.includes("date-fns")) return "date";
+          if (id.includes("@fontsource/")) return "fonts";
+          return undefined;
+        },
+      },
+    },
   },
 });

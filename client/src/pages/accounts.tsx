@@ -17,6 +17,7 @@ import {
   Clock,
   Sparkles,
 } from "lucide-react";
+import { FaLinkedin, FaXTwitter, FaInstagram } from "react-icons/fa6";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -274,7 +275,7 @@ export default function AccountsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#0A66C2] rounded-lg flex items-center justify-center">
-                    <i className="fab fa-linkedin text-white text-lg"></i>
+                    <FaLinkedin className="text-white w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -352,7 +353,7 @@ export default function AccountsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${twitterConnection ? 'bg-white' : 'bg-white/10'}`}>
-                    <i className={`fab fa-x-twitter text-lg ${twitterConnection ? 'text-black' : 'text-white/60'}`}></i>
+                    <FaXTwitter className={`w-5 h-5 ${twitterConnection ? 'text-black' : 'text-white/60'}`} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -402,7 +403,7 @@ export default function AccountsPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
-                    <i className="fab fa-instagram text-white/40 text-lg"></i>
+                    <FaInstagram className="text-white/40 w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
