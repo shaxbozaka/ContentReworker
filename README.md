@@ -52,13 +52,15 @@ Then open http://localhost:3000.
 
 ### Optional env vars
 
-- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` — fallback AI providers
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` + `GOOGLE_REDIRECT_URI` — for Sign in with Google + YouTube import
-- `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` — for Sign in with LinkedIn + publishing
-- `YOUTUBE_API_KEY` — for trending tab + tracked-channel ingestion
-- `PADDLE_API_KEY` / `PADDLE_CLIENT_TOKEN` — for Pro subscriptions
+- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` — fallback AI providers (Gemini → OpenAI → Anthropic chain)
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` + `GOOGLE_REDIRECT_URI` — Sign in with Google + YouTube import (request `youtube.readonly` scope when bootstrapping)
+- `YOUTUBE_API_KEY` — Trending tab + per-channel ingest from tracked accounts
+- `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET` / `LINKEDIN_REDIRECT_URI` — Sign in with LinkedIn + posting from the repurposer
+- `PADDLE_API_KEY` / `PADDLE_CLIENT_TOKEN` / `PADDLE_WEBHOOK_SECRET` / `PADDLE_PRO_MONTHLY_PRICE_ID` / `PADDLE_PRO_ANNUAL_PRICE_ID` — Pro subscriptions
+- `ADMIN_EMAILS` — comma-separated list of admin email addresses; gates `GET /api/users`. Leave unset in dev to disable admin routes.
+- `TIERED_SESSION_TTL_MS` — in-memory session cache TTL (default 5 min). Lower for stricter session invalidation, higher for fewer DB hits.
 
-See `server/routes.ts` for the full surface.
+See `server/routes.ts` for the full HTTP surface and `shared/schema.ts` for the data model.
 
 ## How the recommender works
 
@@ -85,21 +87,23 @@ Topic tagging is done post-ingest via Gemini 2.5 Flash Lite in [`server/services
 - Data is never used for model training, advertising, or resale. See [our privacy policy](https://aicontentrepurposer.com/privacy-policy) — we adhere to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy) including the Limited Use requirements.
 - Revoke access any time at [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
 
+## Security
+
+Self-audited end-to-end before going public. Source-code, infra, and rate-limit posture each ran through three review passes; the running fixes for what surfaced (auth gaps, IDOR, OAuth state CSRF, weak PRNG, cost-inflation rate limits, EOL Node base image, etc.) are squashed into the `security:` commits visible in the log.
+
+Found something? See [SECURITY.md](./SECURITY.md) for the disclosure process.
+
 ## Contributing
 
-Open issues + PRs welcome. No CLA, no copyright assignment.
-
-Branching: main is deployable. Feature branches merge via PR; we keep the history mostly linear.
-
-If you're adding a new AI provider, new social integration, or a new ranking signal, open an issue first so we can talk through the schema implications.
+Open issues + PRs welcome. No CLA, no copyright assignment. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the short version.
 
 ## Status
 
-Phase 1 shipped: YouTube import + per-user tracked creators + topic-aware recommender + 👍/👎 feedback + per-tenant ranking.
+**Phase 1 shipped** — YouTube import, per-user tracked creators, topic-aware recommender, 👍/👎 feedback signals, session-store hardening, full security pass.
 
-Phase 2 (in progress): [open-source browser extension](https://github.com/shaxbozaka) for LinkedIn / Instagram / TikTok ingestion via the user's own logged-in session (so no paid scraping service, no server-side session storage).
+**Phase 2 (in progress)** — open-source browser extension (separate repo) for LinkedIn / Instagram / TikTok ingestion via the user's own logged-in session. No paid scraping service, no server-side cookie storage.
 
-Phase 3 (future): pgvector + embedding-based similarity, creator discovery ("people who track X also track…"), explicit preference refinement.
+**Phase 3 (future)** — pgvector + Gemini embedding-based similarity, creator discovery ("people who track X also track…"), CSRF tokens, Redis-backed rate limiter for multi-replica scaling.
 
 ## License
 
