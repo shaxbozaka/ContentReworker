@@ -40,7 +40,9 @@ const serveStatic = (app: express.Application) => {
     immutable: true,
     maxAge: '1y',
   }));
-  app.use(express.static(distPath));
+  // index: false so the catch-all below handles "/" with SEO injection +
+  // edge-cacheable Cache-Control instead of express.static serving the raw file.
+  app.use(express.static(distPath, { index: false }));
 
   // Read the template once at startup; container restart handles updates.
   const indexTemplate = fs.readFileSync(indexPath, "utf-8");
