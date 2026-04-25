@@ -321,40 +321,88 @@ function getPlatformPrompt(platform: PlatformType, contentSource: ContentSource,
       return `
         ${basePrompt}
 
-        Create a HIGH-PERFORMING LinkedIn post optimized for engagement. Follow these rules:
+        Write a LinkedIn post that earns attention through value, not by demanding it. The 2021-era
+        "Hot take:" / "Stop scrolling." / "Most people get X wrong. Here's why." formulas are now
+        recognized as AI-generated boilerplate and signal low-quality content. Avoid them entirely.
 
-        **HOOK (CRITICAL - First 210 characters)**
-        The first line is EVERYTHING. LinkedIn truncates posts at 210 characters in the feed.
-        Provide 3 different hook options, each designed to stop the scroll:
-        - Hook 1: A bold, contrarian statement or hot take
-        - Hook 2: A surprising statistic, result, or "I did X and here's what happened"
-        - Hook 3: A relatable pain point or question that speaks directly to the reader
+        **HOOK (first line, shows in feed before the See more cut)**
+        Generate 3 hooks. Each takes a DIFFERENT path into the post:
 
-        **FORMAT**
-        Structure your response EXACTLY like this:
+        - Hook 1 — SPECIFIC DETAIL: open with a concrete number, name, date, or observable fact. A
+          reader who only skims the line should walk away knowing one real thing.
+          Shape: "We onboarded 47 customers in 30 days from a strategy that took 4 minutes a day."
+                 "Three weeks before launch, our biggest customer asked for a refund."
+
+        - Hook 2 — IN MEDIA RES: drop the reader into a moment that's already happening. A scene,
+          a quote, a line of dialogue, a turning point. The reader has to continue to learn what happened.
+          Shape: "She walked out of the interview before I finished the second question."
+                 "The deck was 47 slides. The CEO closed it at slide 3 and asked one question."
+
+        - Hook 3 — PLAIN OBSERVATION: state a non-obvious truth in plain language, with no flagging.
+          Don't call it a hot take. Don't ask a question. Don't promise a list. Just say the thing
+          and let it stand on its own.
+          Shape: "Most B2B dashboards show metrics that don't help anyone make a decision."
+                 "The hiring market has quietly stopped rewarding loyalty."
+
+        **HARD AVOID — every one of these reads as 'generic AI LinkedIn post' in 2026:**
+        - "Stop scrolling." / "Hot take:" / "Unpopular opinion:" / "Hear me out."
+        - "Most people get X wrong. Here's why."
+        - "I did X for Y days. Here's what happened." (the format itself, not the structure)
+        - Opening with an engagement-bait question ("Want to know the secret to ___?")
+        - 🚨 / 🔥 / ⚡ as the first character
+        - "Let me tell you a story" / "Storytime:"
+        - "X failed. Here's why." as a literal opener
+        - Vague maxims that could apply to anyone ("Success isn't about working harder")
+        - Anything that requires the second sentence to make sense
+
+        **HOOK CONSTRAINTS:**
+        - Under ~18 words on the first line (LinkedIn truncates around 210 chars on mobile).
+        - Lead with a concrete noun, person, or moment — not "I", "you", or "we" (fine in sentence 2+).
+        - One specific beats three vague: concrete > clever.
+        - Past tense generally > present tense (carries more authority).
+        - No emojis in the hook itself.
+
+        **FORMAT — return EXACTLY this structure:**
 
         ---HOOK OPTIONS---
-        [Hook 1]
-        [Hook 2]
-        [Hook 3]
+        [Hook 1, single line]
+        [Hook 2, single line]
+        [Hook 3, single line]
         ---END HOOKS---
 
         ---POST BODY---
-        [The rest of the post using the first hook, with these LinkedIn best practices:]
-        - Use single-sentence paragraphs for mobile readability
-        - Add white space between ideas (blank lines)
-        - Keep paragraphs to 1-2 sentences max
-        - Use "you" language to speak directly to the reader
-        - Include a specific insight, lesson, or takeaway
-        - Total post should be 800-1500 characters (sweet spot for engagement)
+        [The rest of the post, using Hook 1 as the opener.]
+
+        Body guidance:
+        - Paragraph RHYTHM should vary. Single-sentence paragraphs work for emphasis but eight in a
+          row reads as 'LinkedIn template'. Mix one-liners with 2-3 sentence paragraphs.
+        - Build a real arc: setup → tension → turn → takeaway. OR claim → evidence → implication.
+        - Use specifics. Real numbers, real names, real dates, real outcomes. Where the source has
+          them, keep them. Where it doesn't, avoid making them up — be specific about what the
+          source actually says.
+        - "You" sparingly. Overusing it ("You know that feeling when...") is a tell.
+        - Total 800-1500 characters. Long enough to deliver substance, short enough to feel feed-native.
         ---END BODY---
 
         ---CTA---
-        [A natural call-to-action that encourages engagement without being salesy]
-        Example CTAs: "Agree? I'd love to hear your take." / "What would you add?" / "Drop a 🔥 if this resonates"
+        [A real question or invitation that an actual reader could form an opinion about.
+         Specific to the post's topic — not generic engagement bait.]
+
+        GOOD shapes:
+        - "Curious if anyone here has run this differently — what worked?"
+        - "If you've been on the other side of this hire, what did the manager get wrong?"
+        - "What's the one metric that actually moved retention for your team this year?"
+
+        DO NOT generate any of these — they read as engagement bait:
+        - "Drop a 🔥 if this resonates"
+        - "Agree? I'd love to hear your take." (too generic)
+        - "Like and follow for more"
+        - "What do you think?" (too vague)
+        - "Comment below if you've experienced this"
         ---END CTA---
 
-        Remember: Write like a human sharing insights, not a marketer selling something.
+        Final test before you respond: would a senior person in this field actually post this, or
+        would they cringe at it? If the latter, rewrite.
       `;
 
     case "Instagram":
