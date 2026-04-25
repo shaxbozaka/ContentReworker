@@ -90,19 +90,21 @@ function PlatformIcon({ platform, className }: { platform: string; className?: s
 
 function getPlatformColor(platform: string): string {
   switch (platform) {
-    case "Twitter": return "bg-white";
+    case "Twitter": return "bg-slate-950";
     case "LinkedIn": return "bg-[#0A66C2]";
     case "Instagram": return "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600";
-    case "Email": return "bg-white/20";
-    default: return "bg-white/20";
+    case "Email": return "bg-slate-100";
+    default: return "bg-slate-100";
   }
 }
 
 function getPlatformIconColor(platform: string): string {
   switch (platform) {
-    case "Twitter": return "text-black";
-    case "Email": return "text-white";
-    default: return "text-white";
+    case "Twitter": return "text-white";
+    case "LinkedIn": return "text-white";
+    case "Instagram": return "text-white";
+    case "Email": return "text-slate-700";
+    default: return "text-slate-700";
   }
 }
 
@@ -161,18 +163,18 @@ export default function HistoryPage() {
   // Not logged in
   if (!isAuthLoading && !isLoggedIn) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#0f0f0f]">
+      <div className="app-page">
         <AppHeader />
         <main className="flex-1 flex items-center justify-center py-16">
           <div className="text-center max-w-md mx-auto px-4">
-            <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <History className="w-10 h-10 text-blue-400" />
+            <div className="w-20 h-20 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <History className="w-10 h-10 text-blue-600" />
             </div>
-            <h1 className="text-3xl font-extrabold text-white mb-3 tracking-tight">Sign in to view history</h1>
-            <p className="text-white/70 mb-8 text-lg">
+            <h1 className="text-3xl font-extrabold text-slate-950 mb-3 tracking-tight">Sign in to view history</h1>
+            <p className="text-slate-600 mb-8 text-lg">
               Your transformation history is saved when you're signed in.
             </p>
-            <Button onClick={() => navigate("/")} className="bg-white text-black hover:bg-white/90 px-8 py-3 text-base font-semibold">
+            <Button onClick={() => navigate("/")} className="bg-slate-950 text-white hover:bg-slate-800 px-8 py-3 text-base font-semibold">
               Go to Home
             </Button>
           </div>
@@ -185,15 +187,15 @@ export default function HistoryPage() {
   const transformations = data?.transformations || [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0f0f0f]">
+    <div className="app-page">
       <AppHeader />
 
       <main className="flex-1 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-3xl font-extrabold text-white tracking-tight">Transformation History</h1>
-              <p className="text-white/70 mt-2">
+              <h1 className="text-3xl font-extrabold text-slate-950 tracking-tight">Transformation History</h1>
+              <p className="text-slate-600 mt-2">
                 {data?.pagination.total || 0} transformations saved
               </p>
             </div>
@@ -211,8 +213,8 @@ export default function HistoryPage() {
                 onClick={() => setStatusFilter(key)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   statusFilter === key
-                    ? "bg-white/10 text-white"
-                    : "bg-white/[0.03] text-white/70 hover:bg-white/[0.06] hover:text-white/70"
+                    ? "bg-slate-950 text-white"
+                    : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
                 {Icon && <Icon className="w-3.5 h-3.5" />}
@@ -223,18 +225,18 @@ export default function HistoryPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-white/40" />
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             </div>
           ) : transformations.length === 0 ? (
             <div className="text-center py-20">
-              <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <FileText className="w-10 h-10 text-blue-400" />
+              <div className="w-20 h-20 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <FileText className="w-10 h-10 text-blue-600" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-3">No history yet</h3>
-              <p className="text-white/70 mb-8 text-lg">
+              <h3 className="text-xl font-bold text-slate-950 mb-3">No history yet</h3>
+              <p className="text-slate-600 mb-8 text-lg">
                 Your transformations will appear here after you repurpose content.
               </p>
-              <Button onClick={() => navigate("/")} className="bg-white text-black hover:bg-white/90 px-8 py-3 text-base font-semibold">
+              <Button onClick={() => navigate("/")} className="bg-slate-950 text-white hover:bg-slate-800 px-8 py-3 text-base font-semibold">
                 Start Repurposing
               </Button>
             </div>
@@ -247,36 +249,36 @@ export default function HistoryPage() {
                 return (
                   <div
                     key={item.id}
-                    className="bg-white/[0.03] rounded-xl border border-white/10 overflow-hidden"
+                    className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
                   >
                     {/* Header */}
                     <div
-                      className="p-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                      className="p-4 cursor-pointer hover:bg-slate-50 transition-colors"
                       onClick={() => setExpandedId(isExpanded ? null : item.id)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/60">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                               {item.contentSource}
                             </span>
                             {item.status === "posted" ? (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400 flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                                 <Send className="w-3 h-3" />
                                 Posted{item.postedPlatform ? ` to ${item.postedPlatform}` : ""}
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
                                 <FileEdit className="w-3 h-3" />
                                 Draft
                               </span>
                             )}
-                            <span className="text-xs text-white/40 flex items-center gap-1">
+                            <span className="text-xs text-slate-500 flex items-center gap-1">
                               <Clock className="w-3 h-3" />
                               {timeAgo(item.createdAt)}
                             </span>
                           </div>
-                          <p className="text-white font-medium line-clamp-2">
+                          <p className="text-slate-900 font-medium line-clamp-2">
                             {item.originalContent.substring(0, 150)}
                             {item.originalContent.length > 150 && "..."}
                           </p>
@@ -299,14 +301,14 @@ export default function HistoryPage() {
                               e.stopPropagation();
                               handleReuse(item);
                             }}
-                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                            className="text-blue-700 hover:text-blue-800 hover:bg-blue-50"
                           >
                             Reuse <ArrowRight className="w-4 h-4 ml-1" />
                           </Button>
                           {isExpanded ? (
-                            <ChevronUp className="w-5 h-5 text-white/40" />
+                            <ChevronUp className="w-5 h-5 text-slate-400" />
                           ) : (
-                            <ChevronDown className="w-5 h-5 text-white/40" />
+                            <ChevronDown className="w-5 h-5 text-slate-400" />
                           )}
                         </div>
                       </div>
@@ -314,22 +316,22 @@ export default function HistoryPage() {
 
                     {/* Expanded content */}
                     {isExpanded && (
-                      <div className="border-t border-white/10 p-4 bg-white/[0.02]">
+                      <div className="border-t border-slate-200 p-4 bg-slate-50">
                         <div className="grid gap-4">
                           {platforms.map((platform) => {
                             const output = item.outputs[platform];
                             const isCopied = copiedPlatform === `${item.id}-${platform}`;
 
                             return (
-                              <div key={platform} className="bg-white/[0.03] rounded-lg p-4 border border-white/10">
+                              <div key={platform} className="bg-white rounded-lg p-4 border border-slate-200">
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
                                     <div className={`w-6 h-6 ${getPlatformColor(platform)} rounded flex items-center justify-center`}>
                                       <PlatformIcon platform={platform} />
                                     </div>
-                                    <span className="font-medium text-white">{platform}</span>
+                                    <span className="font-medium text-slate-900">{platform}</span>
                                     {output.characterCount && (
-                                      <span className="text-xs text-white/40">
+                                      <span className="text-xs text-slate-500">
                                         {output.characterCount} chars
                                       </span>
                                     )}
@@ -338,7 +340,7 @@ export default function HistoryPage() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleCopy(output.content, `${item.id}-${platform}`)}
-                                    className="border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+                                    className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                                   >
                                     {isCopied ? (
                                       <>
@@ -351,7 +353,7 @@ export default function HistoryPage() {
                                     )}
                                   </Button>
                                 </div>
-                                <p className="text-sm text-white/70 whitespace-pre-wrap">
+                                <p className="text-sm text-slate-700 whitespace-pre-wrap">
                                   {output.content}
                                 </p>
                               </div>
@@ -360,12 +362,12 @@ export default function HistoryPage() {
                         </div>
 
                         {/* Delete button */}
-                        <div className="mt-4 pt-4 border-t border-white/10 flex justify-end">
+                        <div className="mt-4 pt-4 border-t border-slate-200 flex justify-end">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(item.id)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
                             Delete
@@ -385,15 +387,15 @@ export default function HistoryPage() {
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#141414] border-white/10">
+        <AlertDialogContent className="bg-white border-slate-200">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete transformation?</AlertDialogTitle>
-            <AlertDialogDescription className="text-white/60">
+            <AlertDialogTitle className="text-slate-950">Delete transformation?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600">
               This will permanently remove this transformation from your history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-white/70 hover:bg-white/10 hover:text-white">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => itemToDelete && deleteMutation.mutate(itemToDelete)}
               className="bg-red-600 hover:bg-red-700 text-white"

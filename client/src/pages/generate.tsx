@@ -187,7 +187,7 @@ export default function GeneratePage() {
   // Show loading state
   if (authLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#0a0a0a]">
+      <div className="app-page">
         <AppHeader />
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-[#0077b5]" />
@@ -200,7 +200,7 @@ export default function GeneratePage() {
   // Show upgrade prompt for non-Pro users
   if (!isPro) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#0a0a0a]">
+      <div className="app-page">
         <AppHeader />
         <ProPaywall
           icon={ImagePlus}
@@ -220,20 +220,20 @@ export default function GeneratePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0a0a0a]">
+    <div className="app-page">
       <AppHeader />
 
       {/* Hero */}
       <section className="py-8 md:py-12">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+          <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
             <Sparkles className="w-4 h-4" />
             Pro Feature
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-[#faf7f2] mb-4 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-slate-950 mb-4 tracking-tight">
             AI Image Generator
           </h1>
-          <p className="text-lg text-[#faf7f2]/60 max-w-2xl mx-auto">
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             Create stunning images for your social media posts using DALL-E 3.
             Just describe what you want or let AI create visuals based on your content.
           </p>
@@ -246,8 +246,8 @@ export default function GeneratePage() {
             {/* Input Section */}
             <div className="space-y-6">
               {/* Platform Selection */}
-              <div className="bg-[#111111] rounded-xl p-6 border border-white/10">
-                <h2 className="text-lg font-semibold text-[#faf7f2] mb-4">
+              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                <h2 className="text-lg font-semibold text-slate-950 mb-4">
                   Choose Format
                 </h2>
                 <div className="grid grid-cols-2 gap-3">
@@ -261,15 +261,15 @@ export default function GeneratePage() {
                         onClick={() => setPlatform(p)}
                         className={`p-4 rounded-xl border-2 text-left transition-all ${
                           isSelected
-                            ? "border-[#0077b5] bg-[#0077b5]/10"
-                            : "border-white/10 hover:border-white/20 bg-white/5"
+                            ? "border-[#0077b5] bg-[#0077b5]/5"
+                            : "border-slate-200 hover:border-slate-300 bg-slate-50"
                         }`}
                       >
-                        <Icon className={`w-5 h-5 ${isSelected ? 'text-[#0077b5]' : 'text-[#faf7f2]/60'} mb-2`} />
-                        <div className={`font-medium text-sm ${isSelected ? 'text-[#faf7f2]' : 'text-[#faf7f2]/80'}`}>
+                        <Icon className={`w-5 h-5 ${isSelected ? 'text-[#0077b5]' : 'text-slate-500'} mb-2`} />
+                        <div className={`font-medium text-sm ${isSelected ? 'text-slate-950' : 'text-slate-800'}`}>
                           {config.label}
                         </div>
-                        <div className="text-xs text-[#faf7f2]/40 mt-0.5">
+                        <div className="text-xs text-slate-500 mt-0.5">
                           {config.description}
                         </div>
                       </button>
@@ -280,8 +280,8 @@ export default function GeneratePage() {
 
               {/* Style Selection (only for social platforms) */}
               {platform !== "custom" && (
-                <div className="bg-[#111111] rounded-xl p-6 border border-white/10">
-                  <h2 className="text-lg font-semibold text-[#faf7f2] mb-4">
+                <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                  <h2 className="text-lg font-semibold text-slate-950 mb-4">
                     Choose Style
                   </h2>
                   <div className="flex gap-3">
@@ -294,14 +294,14 @@ export default function GeneratePage() {
                           onClick={() => setStyle(s)}
                           className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${
                             isSelected
-                              ? "border-[#0077b5] bg-[#0077b5]/10"
-                              : "border-white/10 hover:border-white/20 bg-white/5"
+                              ? "border-[#0077b5] bg-[#0077b5]/5"
+                              : "border-slate-200 hover:border-slate-300 bg-slate-50"
                           }`}
                         >
-                          <div className={`font-medium text-sm ${isSelected ? 'text-[#faf7f2]' : 'text-[#faf7f2]/80'}`}>
+                          <div className={`font-medium text-sm ${isSelected ? 'text-slate-950' : 'text-slate-800'}`}>
                             {config.label}
                           </div>
-                          <div className="text-xs text-[#faf7f2]/40 mt-0.5">
+                          <div className="text-xs text-slate-500 mt-0.5">
                             {config.description}
                           </div>
                         </button>
@@ -312,8 +312,8 @@ export default function GeneratePage() {
               )}
 
               {/* Content Input */}
-              <div className="bg-[#111111] rounded-xl p-6 border border-white/10">
-                <h2 className="text-lg font-semibold text-[#faf7f2] mb-4">
+              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+                <h2 className="text-lg font-semibold text-slate-950 mb-4">
                   {platform === "custom" ? "Enter Prompt" : "Describe Your Content"}
                 </h2>
                 <Textarea
@@ -328,9 +328,9 @@ export default function GeneratePage() {
                       ? setCustomPrompt(e.target.value)
                       : setContent(e.target.value)
                   }
-                  className="min-h-[150px] resize-none bg-[#0a0a0a] border-white/10 text-[#faf7f2] placeholder:text-[#faf7f2]/30"
+                  className="min-h-[150px] resize-none bg-white border-slate-200 text-slate-900 placeholder:text-slate-400"
                 />
-                <p className="text-xs text-[#faf7f2]/40 mt-2">
+                <p className="text-xs text-slate-500 mt-2">
                   {platform === "custom"
                     ? "Be specific about colors, style, composition, and mood for best results."
                     : "The AI will analyze your content and create a relevant visual without text overlays."}
@@ -341,7 +341,7 @@ export default function GeneratePage() {
               <Button
                 onClick={handleGenerate}
                 disabled={loading}
-                className="w-full py-6 bg-gradient-to-r from-[#0077b5] to-[#005885] hover:from-[#0088cc] hover:to-[#006699] text-lg"
+                className="w-full py-6 bg-gradient-to-r from-[#0077b5] to-[#005885] hover:from-[#0088cc] hover:to-[#006699] text-lg text-white"
               >
                 {loading ? (
                   <>
@@ -358,8 +358,8 @@ export default function GeneratePage() {
             </div>
 
             {/* Output Section */}
-            <div className="bg-[#111111] rounded-xl p-6 border border-white/10 min-h-[500px] flex flex-col">
-              <h2 className="text-lg font-semibold text-[#faf7f2] mb-4">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm min-h-[500px] flex flex-col">
+              <h2 className="text-lg font-semibold text-slate-950 mb-4">
                 Generated Image
               </h2>
 
@@ -369,12 +369,12 @@ export default function GeneratePage() {
                     <div className="w-24 h-24 rounded-full border-4 border-[#0077b5]/20 border-t-[#0077b5] animate-spin" />
                     <ImagePlus className="w-8 h-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#0077b5]" />
                   </div>
-                  <p className="mt-6 text-[#faf7f2] font-medium">Creating your image...</p>
-                  <p className="text-sm text-[#faf7f2]/40 mt-1">This may take 10-20 seconds</p>
+                  <p className="mt-6 text-slate-900 font-medium">Creating your image...</p>
+                  <p className="text-sm text-slate-500 mt-1">This may take 10-20 seconds</p>
                 </div>
               ) : generatedImage ? (
                 <div className="flex-1 flex flex-col">
-                  <div className="flex-1 rounded-lg overflow-hidden bg-[#0a0a0a] mb-4">
+                  <div className="flex-1 rounded-lg overflow-hidden bg-slate-50 border border-slate-200 mb-4">
                     <img
                       src={generatedImage.url}
                       alt="Generated AI image"
@@ -385,7 +385,7 @@ export default function GeneratePage() {
                     <div className="flex gap-3">
                       <Button
                         onClick={handleDownload}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Download Image
@@ -393,18 +393,18 @@ export default function GeneratePage() {
                       <Button
                         onClick={handleGenerate}
                         variant="outline"
-                        className="flex-1 border-white/10 text-[#faf7f2] hover:bg-white/5"
+                        className="flex-1 border-slate-200 text-slate-700 hover:bg-slate-50"
                       >
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Regenerate
                       </Button>
                     </div>
                     {generatedImage.revisedPrompt && (
-                      <details className="text-xs text-[#faf7f2]/40">
-                        <summary className="cursor-pointer hover:text-[#faf7f2]/60">
+                      <details className="text-xs text-slate-500">
+                        <summary className="cursor-pointer hover:text-slate-700">
                           View AI's interpretation
                         </summary>
-                        <p className="mt-2 p-3 bg-[#0a0a0a] rounded-lg text-[#faf7f2]/60">
+                        <p className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-600">
                           {generatedImage.revisedPrompt}
                         </p>
                       </details>
@@ -413,11 +413,11 @@ export default function GeneratePage() {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center">
-                  <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                    <ImagePlus className="w-10 h-10 text-[#faf7f2]/20" />
+                  <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                    <ImagePlus className="w-10 h-10 text-slate-400" />
                   </div>
-                  <p className="text-[#faf7f2]/60 font-medium">No image generated yet</p>
-                  <p className="text-sm text-[#faf7f2]/40 mt-1 text-center max-w-xs">
+                  <p className="text-slate-700 font-medium">No image generated yet</p>
+                  <p className="text-sm text-slate-500 mt-1 text-center max-w-xs">
                     Select a format, describe your content, and click Generate
                   </p>
                 </div>
@@ -427,34 +427,34 @@ export default function GeneratePage() {
 
           {/* Tips */}
           <div className="mt-12 max-w-3xl mx-auto">
-            <h2 className="text-xl font-bold text-[#faf7f2] text-center mb-6">
+            <h2 className="text-xl font-bold text-slate-950 text-center mb-6">
               Tips for Great Images
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-[#111111] rounded-xl p-5 border border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-[#0077b5]/20 flex items-center justify-center mb-3">
-                  <span className="text-lg text-[#0077b5]">1</span>
+              <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div className="w-10 h-10 rounded-lg bg-[#0077b5]/10 flex items-center justify-center mb-3">
+                  <span className="text-lg font-bold text-[#0077b5]">1</span>
                 </div>
-                <h3 className="font-semibold text-[#faf7f2] mb-2">Be Specific</h3>
-                <p className="text-sm text-[#faf7f2]/50">
+                <h3 className="font-semibold text-slate-950 mb-2">Be Specific</h3>
+                <p className="text-sm text-slate-600">
                   Include details about colors, mood, composition, and style for better results.
                 </p>
               </div>
-              <div className="bg-[#111111] rounded-xl p-5 border border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-[#0077b5]/20 flex items-center justify-center mb-3">
-                  <span className="text-lg text-[#0077b5]">2</span>
+              <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div className="w-10 h-10 rounded-lg bg-[#0077b5]/10 flex items-center justify-center mb-3">
+                  <span className="text-lg font-bold text-[#0077b5]">2</span>
                 </div>
-                <h3 className="font-semibold text-[#faf7f2] mb-2">No Text in Images</h3>
-                <p className="text-sm text-[#faf7f2]/50">
+                <h3 className="font-semibold text-slate-950 mb-2">No Text in Images</h3>
+                <p className="text-sm text-slate-600">
                   AI-generated text often looks odd. Add text overlays separately in your editor.
                 </p>
               </div>
-              <div className="bg-[#111111] rounded-xl p-5 border border-white/10">
-                <div className="w-10 h-10 rounded-lg bg-[#0077b5]/20 flex items-center justify-center mb-3">
-                  <span className="text-lg text-[#0077b5]">3</span>
+              <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div className="w-10 h-10 rounded-lg bg-[#0077b5]/10 flex items-center justify-center mb-3">
+                  <span className="text-lg font-bold text-[#0077b5]">3</span>
                 </div>
-                <h3 className="font-semibold text-[#faf7f2] mb-2">Iterate</h3>
-                <p className="text-sm text-[#faf7f2]/50">
+                <h3 className="font-semibold text-slate-950 mb-2">Iterate</h3>
+                <p className="text-sm text-slate-600">
                   Not happy with the first result? Regenerate or tweak your prompt for variations.
                 </p>
               </div>

@@ -196,16 +196,16 @@ export default function TrendingPage() {
   const visibleItems = items.filter((i) => !hiddenIds.has(i.id));
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0f0f0f]">
+    <div className="app-page">
       <AppHeader />
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-white tracking-tight mb-2">
+          <h1 className="text-3xl font-semibold text-slate-950 tracking-tight mb-2">
             Content Ideas
           </h1>
-          <p className="text-white/40">
+          <p className="text-slate-600">
             Viral posts to inspire your next LinkedIn content
           </p>
         </div>
@@ -217,8 +217,8 @@ export default function TrendingPage() {
               onClick={() => setFilter("curated")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 filter === "curated"
-                  ? "bg-white text-black"
-                  : "bg-white/5 text-white/60 hover:bg-white/10"
+                  ? "bg-slate-950 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
               Viral Posts
@@ -227,8 +227,8 @@ export default function TrendingPage() {
               onClick={() => setFilter("all")}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 filter === "all"
-                  ? "bg-white text-black"
-                  : "bg-white/5 text-white/60 hover:bg-white/10"
+                  ? "bg-slate-950 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
               Trending
@@ -238,7 +238,7 @@ export default function TrendingPage() {
           <button
             onClick={() => refreshMutation.mutate()}
             disabled={refreshMutation.isPending || isRefetching}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/5"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100"
           >
             <RefreshCw className={`w-4 h-4 ${(refreshMutation.isPending || isRefetching) ? "animate-spin" : ""}`} />
             Refresh
@@ -248,16 +248,16 @@ export default function TrendingPage() {
         {/* Content */}
         {isLoading ? (
           <div className="py-20 text-center">
-            <Loader2 className="w-6 h-6 text-white/30 animate-spin mx-auto" />
+            <Loader2 className="w-6 h-6 text-slate-400 animate-spin mx-auto" />
           </div>
         ) : visibleItems.length === 0 ? (
-          <div className="py-20 text-center border border-white/10 rounded-xl">
-            <p className="text-white/50 mb-2 text-lg">No content yet</p>
-            <p className="text-white/30 mb-6 text-sm max-w-md mx-auto">
+          <div className="py-20 text-center border border-slate-200 bg-white rounded-xl">
+            <p className="text-slate-700 mb-2 text-lg">No content yet</p>
+            <p className="text-slate-500 mb-6 text-sm max-w-md mx-auto">
               Add a few creators or competitors you want to pull viral posts from. We'll ingest their recent content into this feed.
             </p>
             <Link href="/creators">
-              <Button className="bg-white text-black hover:bg-white/90">
+              <Button className="bg-slate-950 text-white hover:bg-slate-800">
                 Pick creators to follow
                 <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
@@ -270,16 +270,16 @@ export default function TrendingPage() {
               return (
               <div
                 key={item.id}
-                className="bg-white/[0.03] border border-white/10 rounded-xl p-5 hover:bg-white/[0.05] transition-all"
+                className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-slate-300 hover:shadow-md transition-all"
               >
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex items-center gap-2">
-                    <PlatformIcon className="w-4 h-4 text-white/40" />
-                    <span className="text-white/50 text-sm">{item.author || "Unknown"}</span>
+                    <PlatformIcon className="w-4 h-4 text-slate-500" />
+                    <span className="text-slate-600 text-sm">{item.author || "Unknown"}</span>
                   </div>
                   {item.hookPattern && (
-                    <span className="px-2 py-0.5 rounded text-xs bg-white/10 text-white/60">
+                    <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700">
                       {item.hookPattern}
                     </span>
                   )}
@@ -287,7 +287,7 @@ export default function TrendingPage() {
 
                 {/* Video embed or thumbnail for video content */}
                 {item.mediaType === "video" && item.videoUrl && (
-                  <div className="relative mb-4 rounded-lg overflow-hidden bg-black aspect-video">
+                  <div className="relative mb-4 rounded-lg overflow-hidden bg-slate-900 aspect-video">
                     {/youtube\.com\/embed/.test(item.videoUrl) ? (
                       <iframe
                         src={item.videoUrl}
@@ -313,22 +313,22 @@ export default function TrendingPage() {
                 )}
 
                 {/* Content */}
-                <p className="text-white/80 text-[15px] leading-relaxed mb-4 whitespace-pre-wrap">
+                <p className="text-slate-800 text-[15px] leading-relaxed mb-4 whitespace-pre-wrap">
                   {item.content || item.hook || item.title}
                 </p>
 
                 {/* Why it works */}
                 {item.whyItWorks && (
-                  <div className="bg-white/5 rounded-lg px-3 py-2 mb-4">
-                    <p className="text-white/50 text-sm">
-                      <span className="text-white/70">Why it works:</span> {item.whyItWorks}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 mb-4">
+                    <p className="text-slate-600 text-sm">
+                      <span className="text-slate-900 font-medium">Why it works:</span> {item.whyItWorks}
                     </p>
                   </div>
                 )}
 
                 {/* Metrics & Actions */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-white/40 text-sm">
+                  <div className="flex items-center gap-4 text-slate-500 text-sm">
                     {item.views && item.views > 0 && (
                       <span className="flex items-center gap-1">
                         <Eye className="w-4 h-4" />
@@ -353,8 +353,8 @@ export default function TrendingPage() {
                     <button
                       onClick={() => handleLike(item)}
                       title="More like this"
-                      className={`p-2 rounded-lg hover:bg-white/10 ${
-                        likedIds.has(item.id) ? "text-green-400" : "text-white/40 hover:text-white"
+                      className={`p-2 rounded-lg hover:bg-slate-100 ${
+                        likedIds.has(item.id) ? "text-emerald-600" : "text-slate-500 hover:text-slate-900"
                       }`}
                     >
                       <ThumbsUp className="w-4 h-4" />
@@ -362,7 +362,7 @@ export default function TrendingPage() {
                     <button
                       onClick={() => handleHide(item)}
                       title="Less of this creator"
-                      className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10"
+                      className="p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50"
                     >
                       <ThumbsDown className="w-4 h-4" />
                     </button>
@@ -371,14 +371,14 @@ export default function TrendingPage() {
                         href={item.externalUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10"
+                        className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     )}
                     <button
                       onClick={() => handleCopy(item)}
-                      className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10"
+                      className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                     >
                       {copiedId === item.id ? (
                         <Check className="w-4 h-4" />
@@ -388,7 +388,7 @@ export default function TrendingPage() {
                     </button>
                     <button
                       onClick={() => handleUse(item)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-black text-sm font-medium hover:bg-white/90"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950 text-white text-sm font-medium hover:bg-slate-800"
                     >
                       Use This
                       <ArrowRight className="w-4 h-4" />

@@ -139,12 +139,12 @@ function ConnectYouTubeCard() {
   });
 
   return (
-    <div className="rounded-xl border border-amber-300/20 bg-gradient-to-r from-amber-300/5 to-transparent p-4 flex items-center justify-between gap-4">
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <Sparkles className="w-5 h-5 text-amber-300" />
+        <Sparkles className="w-5 h-5 text-amber-600" />
         <div>
-          <p className="text-sm font-semibold text-white">Bootstrap from your YouTube account</p>
-          <p className="text-xs text-white/50">
+          <p className="text-sm font-semibold text-slate-950">Bootstrap from your YouTube account</p>
+          <p className="text-xs text-slate-600">
             We'll import your subscriptions as tracked creators and use your liked videos to personalize the feed.
           </p>
         </div>
@@ -154,14 +154,14 @@ function ConnectYouTubeCard() {
           variant="outline"
           onClick={() => reimport.mutate()}
           disabled={reimport.isPending}
-          className="border-white/15 bg-transparent text-white hover:bg-white/10"
+          className="border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
         >
           {reimport.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Re-sync"}
         </Button>
         <Button
           onClick={() => connect.mutate()}
           disabled={connect.isPending}
-          className="bg-white text-black hover:bg-white/90"
+          className="bg-slate-950 text-white hover:bg-slate-800"
         >
           {connect.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Connect YouTube"}
         </Button>
@@ -231,13 +231,13 @@ export default function CreatorsPage() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0f0f0f]">
+    <div className="app-page">
       <AppHeader />
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-white tracking-tight mb-2">Creators</h1>
-          <p className="text-white/40 mb-5">
+          <h1 className="text-3xl font-semibold text-slate-950 tracking-tight mb-2">Creators</h1>
+          <p className="text-slate-600 mb-5">
             Track competitors and creators you admire. We'll pull their recent posts into your Ideas feed.
           </p>
 
@@ -298,20 +298,20 @@ function PlatformSection({
   };
 
   return (
-    <section className="border border-white/10 rounded-xl bg-white/[0.02] p-5">
+    <section className="border border-slate-200 rounded-xl bg-white shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <Icon className="w-5 h-5 text-white/70" />
-          <h2 className="text-lg font-semibold text-white">{platform.label}</h2>
+          <Icon className="w-5 h-5 text-slate-700" />
+          <h2 className="text-lg font-semibold text-slate-950">{platform.label}</h2>
           {!platform.serverIngest && (
-            <span className="text-[11px] font-medium text-amber-300/80 bg-amber-300/10 border border-amber-300/20 rounded px-2 py-0.5">
+            <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
               needs extension
             </span>
           )}
         </div>
       </div>
 
-      <p className="text-sm text-white/40 mb-4">{platform.help}</p>
+      <p className="text-sm text-slate-600 mb-4">{platform.help}</p>
 
       <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
         <input
@@ -319,27 +319,27 @@ function PlatformSection({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={platform.placeholder}
-          className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+          className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-slate-400"
         />
-        <Button type="submit" disabled={!input.trim() || addPending} className="bg-white text-black hover:bg-white/90">
+        <Button type="submit" disabled={!input.trim() || addPending} className="bg-slate-950 text-white hover:bg-slate-800">
           {addPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
         </Button>
       </form>
 
       {isLoading ? (
-        <div className="text-white/30 text-sm">Loading...</div>
+        <div className="text-slate-500 text-sm">Loading...</div>
       ) : accounts.length === 0 ? (
-        <div className="text-white/30 text-sm">No accounts yet.</div>
+        <div className="text-slate-500 text-sm">No accounts yet.</div>
       ) : (
         <ul className="space-y-2">
           {accounts.map((a) => (
             <li
               key={a.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
             >
               <div className="flex-1 min-w-0">
-                <div className="text-sm text-white font-medium truncate">{a.displayName || a.handle}</div>
-                <div className="flex items-center gap-3 text-xs text-white/40">
+                <div className="text-sm text-slate-900 font-medium truncate">{a.displayName || a.handle}</div>
+                <div className="flex items-center gap-3 text-xs text-slate-500">
                   <span className="truncate">@{a.handle}</span>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
@@ -353,7 +353,7 @@ function PlatformSection({
                   <button
                     onClick={() => onRefresh(a.id)}
                     disabled={refreshingId === a.id}
-                    className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10 disabled:opacity-50"
+                    className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 disabled:opacity-50"
                     title="Refresh now"
                   >
                     <RefreshCw className={`w-4 h-4 ${refreshingId === a.id ? "animate-spin" : ""}`} />
@@ -361,7 +361,7 @@ function PlatformSection({
                 )}
                 <button
                   onClick={() => onRemove(a.id)}
-                  className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10"
+                  className="p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50"
                   title="Remove"
                 >
                   <Trash2 className="w-4 h-4" />
